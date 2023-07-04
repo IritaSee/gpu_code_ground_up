@@ -201,17 +201,19 @@ STATES[cajsr+(offset * num_of_states)] = 1.2;
 }
 
 
-/*
+
 __global__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC, int offset)
 {
 int num_of_constants = 146;
 int num_of_states = 41;
 int num_of_algebraic = 199;
 int num_of_rates = 41;
+int offset = threadIdx.x;
+
 ALGEBRAIC[vffrt] = ( STATES[V]*CONSTANTS[F]*CONSTANTS[F])/( CONSTANTS[R]*CONSTANTS[T]);
 ALGEBRAIC[vfrt] = ( STATES[V]*CONSTANTS[F])/( CONSTANTS[R]*CONSTANTS[T]);
 ALGEBRAIC[Istim] = (TIME>=CONSTANTS[stim_start]&&TIME<=CONSTANTS[stim_end]&&(TIME - CONSTANTS[stim_start]) -  floor((TIME - CONSTANTS[stim_start])/CONSTANTS[stim_period])*CONSTANTS[stim_period]<=CONSTANTS[duration] ? CONSTANTS[amp] : 0.00000);
-ALGEBRAIC[mss] = 1.00000/(1.00000+exp(- (STATES[V]+CONSTANTS[mssV1])/CONSTANTS[mssV2]));
+ALGEBRAIC[mss] = 1.00000/ (1.00000+exp(- (STATES[V]+CONSTANTS[mssV1])/CONSTANTS[mssV2]));
 ALGEBRAIC[tm] = 1.00000/( CONSTANTS[mtD1]*exp((STATES[V]+CONSTANTS[mtV1])/CONSTANTS[mtV2])+ CONSTANTS[mtD2]*exp(- (STATES[V]+CONSTANTS[mtV3])/CONSTANTS[mtV4]));
 ALGEBRAIC[hss] = 1.00000/(1.00000+exp((STATES[V]+CONSTANTS[hssV1])/CONSTANTS[hssV2]));
 ALGEBRAIC[ths] = 1.00000/( 0.00979400*exp(- (STATES[V]+17.9500)/28.0500)+ 0.334300*exp((STATES[V]+5.73000)/56.6600));
@@ -566,7 +568,7 @@ __global__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, dou
   //STATES[Jrelnp] = STATES[Jrelnp] + RATES[Jrelnp] * dt;
   //STATES[Jrelp] = STATES[Jrelp] + RATES[Jrelp] * dt;
 }
-*/
+
 // ------------------------------------------
 __device__ void applyDrugEffect(double conc, drug_t ic50, double epsilon, double *CONSTANTS)
 {
@@ -638,7 +640,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     }
     printf("\n");
     initConsts(d_CONSTANTS, d_STATES);
-    applyDrugEffect(33.0,d_ic50,1E-14,d_CONSTANTS);
+    applyDrugEffect(99.0,d_ic50,1E-14,d_CONSTANTS);
     for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
         printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
     }
