@@ -1,14 +1,16 @@
 #include "cuda_runtime.h"
 #include <iostream>
+#include <math.h>
 
 #include "modules/globals.hpp"
 #include "modules/commons.hpp"
 
 #include "enums/enum_mar_cell_MKII.cuh"
 // -----------------------------------------
-__global__ void initConsts(double* CONSTANTS, double* RATES, double* STATES, int offset){
-int num_of_constants = 46;
-int num_of_states = 17;
+__device__ void initConsts(double* CONSTANTS, double* STATES){
+int offset = threadIdx.x;
+int num_of_constants = 146;
+int num_of_states = 41;
 CONSTANTS[celltype+(offset * num_of_constants)] = 0;
 CONSTANTS[R+(offset * num_of_constants)] = 8314;
 CONSTANTS[T+(offset * num_of_constants)] = 310;
@@ -198,8 +200,14 @@ STATES[Jrelp+(offset * num_of_states)] = 0;
 STATES[cajsr+(offset * num_of_states)] = 1.2;
 }
 
-__global__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
+
+/*
+__global__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC, int offset)
 {
+int num_of_constants = 146;
+int num_of_states = 41;
+int num_of_algebraic = 199;
+int num_of_rates = 41;
 ALGEBRAIC[vffrt] = ( STATES[V]*CONSTANTS[F]*CONSTANTS[F])/( CONSTANTS[R]*CONSTANTS[T]);
 ALGEBRAIC[vfrt] = ( STATES[V]*CONSTANTS[F])/( CONSTANTS[R]*CONSTANTS[T]);
 ALGEBRAIC[Istim] = (TIME>=CONSTANTS[stim_start]&&TIME<=CONSTANTS[stim_end]&&(TIME - CONSTANTS[stim_start]) -  floor((TIME - CONSTANTS[stim_start])/CONSTANTS[stim_period])*CONSTANTS[stim_period]<=CONSTANTS[duration] ? CONSTANTS[amp] : 0.00000);
@@ -558,7 +566,23 @@ __global__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, dou
   //STATES[Jrelnp] = STATES[Jrelnp] + RATES[Jrelnp] * dt;
   //STATES[Jrelp] = STATES[Jrelp] + RATES[Jrelp] * dt;
 }
+*/
 // ------------------------------------------
+__device__ void applyDrugEffect(double conc, drug_t ic50, double epsilon, double *CONSTANTS)
+{
+  int offset = threadIdx.x;
+  int num_of_constants = 146;
+
+CONSTANTS[GK1+(offset * num_of_constants)] = CONSTANTS[GK1+(offset * num_of_constants)] * ((ic50[2] > 10E-14 && ic50[3] > 10E-14) ? 1./(1.+pow(conc/ic50[2],ic50[3])) : 1.);
+CONSTANTS[GKr+(offset * num_of_constants)] = CONSTANTS[GKr+(offset * num_of_constants)] * ((ic50[12] > 10E-14 && ic50[13] > 10E-14) ? 1./(1.+pow(conc/ic50[12],ic50[13])) : 1.);
+CONSTANTS[GKs+(offset * num_of_constants)] = CONSTANTS[GKs+(offset * num_of_constants)] * ((ic50[4] > 10E-14 && ic50[5] > 10E-14) ? 1./(1.+pow(conc/ic50[4],ic50[5])) : 1.);
+CONSTANTS[GNaL+(offset * num_of_constants)] = CONSTANTS[GNaL+(offset * num_of_constants)] * ((ic50[8] > 10E-14 && ic50[9] > 10E-14) ? 1./(1.+pow(conc/ic50[8],ic50[9])) : 1.);
+CONSTANTS[GNa+(offset * num_of_constants)] = CONSTANTS[GNa+(offset * num_of_constants)] * ((ic50[6] > 10E-14 && ic50[7] > 10E-14) ? 1./(1.+pow(conc/ic50[6],ic50[7])) : 1.);
+CONSTANTS[Gto+(offset * num_of_constants)] = CONSTANTS[Gto+(offset * num_of_constants)] * ((ic50[10] > 10E-14 && ic50[11] > 10E-14) ? 1./(1.+pow(conc/ic50[10],ic50[11])) : 1.);
+CONSTANTS[PCa+(offset * num_of_constants)] = CONSTANTS[PCa+(offset * num_of_constants)] * ( (ic50[0] > 10E-14 && ic50[1] > 10E-14) ? 1./(1.+pow(conc/ic50[0],ic50[1])) : 1.);
+}
+
+
 char buffer[255];
 drug_t ic50;
 // __shared__ drug_t *d_ic50;
@@ -603,33 +627,27 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(drug_t d_ic50){
+__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES){
  unsigned short sample_id;
     sample_id = threadIdx.x;
-    { // begin sample loop
-        printf("Sample_ID:%d \nData: ",
-        sample_id );
+     
+    // printf("Sample_ID:%d \nData: ",sample_id );
         
-        for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
-            printf("Core %d ic50[%d]: %lf \n",sample_id, z, d_ic50[z]);
-        }
-        // printf("\n");
+    for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
+        printf("Core %d ic50[%d]: %lf \n",sample_id, z, d_ic50[z]);
+    }
+    printf("\n");
+    initConsts(d_CONSTANTS, d_STATES);
+    applyDrugEffect(33.0,d_ic50,1E-14,d_CONSTANTS);
+    for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
+        printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
+    }
+    printf("\n");
+    for (int z=0+(sample_id*41);z<(sample_id*41)+41;z++){
+        printf("Core %d STATES[%d]: %lf \n",sample_id, z, d_STATES[z]);
+    }
 
-    } // end sample loop
-
-    // simulation parameters
-  double dtw = 2.0;
-  const char *drug_name = "bepridil";
-  // const double bcl = 2000;
-  const double bcl = 0.001;
-  const double inet_vm_threshold = -88.0;
-  const unsigned short pace_max = 10;
-  const unsigned short celltype = 0.;
-  const unsigned short last_pace_print = 3;
-  const unsigned short last_drug_check_pace = 250;
-//   const unsigned int print_freq = (1./dt) * dtw;
-  unsigned short pace_count = 0;
-  unsigned short pace_steepest = 0;
+ 
 }
 
 double concs[4];
@@ -642,10 +660,10 @@ int main()
     double *d_STATES;
     // input variables for cell simulation
 
-    int num_of_algebraic = 69;
-    int num_of_constants = 46;
-    int num_of_rates = 17;
-    int num_of_states = 17;
+    int num_of_constants = 146;
+    int num_of_states = 41;
+    int num_of_algebraic = 199;
+    int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
       "./IC50_samples10.csv");
@@ -668,7 +686,7 @@ int main()
     cudaMalloc(&d_ic50, sizeof(drug_t));
     cudaMemcpy(d_ic50, ic50, sizeof(drug_t), cudaMemcpyHostToDevice);
 
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50);
+    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES);
     cudaDeviceSynchronize();
     // unsigned short sample_id;
     // for( sample_id = 0;
