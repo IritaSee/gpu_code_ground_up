@@ -247,7 +247,7 @@ __device__ double set_time_step(
 
 
 
-__global__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
+__device__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
 {
 int num_of_constants = 146;
 int num_of_states = 41;
@@ -496,47 +496,54 @@ RATES[(offset * num_of_rates) + cajsr] =  ALGEBRAIC[(offset * num_of_algebraic) 
 RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]);
 }
 
-__global__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
+__device__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
 { 
+
+  int num_of_constants = 146;
+  int num_of_states = 41;
+  int num_of_algebraic = 199;
+  int num_of_rates = 41;
+  int offset = threadIdx.x; 
+
   ////==============
   ////Exact solution
   ////==============
   ////INa
-  STATES[m] = ALGEBRAIC[mss] - (ALGEBRAIC[mss] - STATES[m]) * exp(-dt / ALGEBRAIC[tm]);
-  STATES[hf] = ALGEBRAIC[hss] - (ALGEBRAIC[hss] - STATES[hf]) * exp(-dt / ALGEBRAIC[thf]);
-  STATES[hs] = ALGEBRAIC[hss] - (ALGEBRAIC[hss] - STATES[hs]) * exp(-dt / ALGEBRAIC[ths]);
-  STATES[j] = ALGEBRAIC[jss] - (ALGEBRAIC[jss] - STATES[j]) * exp(-dt / ALGEBRAIC[tj]);
-  STATES[hsp] = ALGEBRAIC[hssp] - (ALGEBRAIC[hssp] - STATES[hsp]) * exp(-dt / ALGEBRAIC[thsp]);
-  STATES[jp] = ALGEBRAIC[jss] - (ALGEBRAIC[jss] - STATES[jp]) * exp(-dt / ALGEBRAIC[tjp]);
-  STATES[mL] = ALGEBRAIC[mLss] - (ALGEBRAIC[mLss] - STATES[mL]) * exp(-dt / ALGEBRAIC[tmL]);
-  STATES[hL] = ALGEBRAIC[hLss] - (ALGEBRAIC[hLss] - STATES[hL]) * exp(-dt / CONSTANTS[thL]);
-  STATES[hLp] = ALGEBRAIC[hLssp] - (ALGEBRAIC[hLssp] - STATES[hLp]) * exp(-dt / CONSTANTS[thLp]);
+  STATES[(offset * num_of_states) + m] = ALGEBRAIC[(offset * num_of_algebraic) + mss] - (ALGEBRAIC[(offset * num_of_algebraic) + mss] - STATES[(offset * num_of_states) + m]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tm]);
+  STATES[(offset * num_of_states) + hf] = ALGEBRAIC[(offset * num_of_algebraic) + hss] - (ALGEBRAIC[(offset * num_of_algebraic) + hss] - STATES[(offset * num_of_states) + hf]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + thf]);
+  STATES[(offset * num_of_states) + hs] = ALGEBRAIC[(offset * num_of_algebraic) + hss] - (ALGEBRAIC[(offset * num_of_algebraic) + hss] - STATES[(offset * num_of_states) + hs]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + ths]);
+  STATES[(offset * num_of_states) + j] = ALGEBRAIC[(offset * num_of_algebraic) + jss] - (ALGEBRAIC[(offset * num_of_algebraic) + jss] - STATES[(offset * num_of_states) + j]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tj]);
+  STATES[(offset * num_of_states) + hsp] = ALGEBRAIC[(offset * num_of_algebraic) + hssp] - (ALGEBRAIC[(offset * num_of_algebraic) + hssp] - STATES[(offset * num_of_states) + hsp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + thsp]);
+  STATES[(offset * num_of_states) + jp] = ALGEBRAIC[(offset * num_of_algebraic) + jss] - (ALGEBRAIC[(offset * num_of_algebraic) + jss] - STATES[(offset * num_of_states) + jp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tjp]);
+  STATES[(offset * num_of_states) + mL] = ALGEBRAIC[(offset * num_of_algebraic) + mLss] - (ALGEBRAIC[(offset * num_of_algebraic) + mLss] - STATES[(offset * num_of_states) + mL]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tmL]);
+  STATES[(offset * num_of_states) + hL] = ALGEBRAIC[(offset * num_of_algebraic) + hLss] - (ALGEBRAIC[(offset * num_of_algebraic) + hLss] - STATES[(offset * num_of_states) + hL]) * exp(-dt / CONSTANTS[(offset * num_of_constants) + thL]);
+  STATES[(offset * num_of_states) + hLp] = ALGEBRAIC[(offset * num_of_algebraic) + hLssp] - (ALGEBRAIC[(offset * num_of_algebraic) + hLssp] - STATES[(offset * num_of_states) + hLp]) * exp(-dt / CONSTANTS[(offset * num_of_constants) + thLp]);
   ////Ito
-  STATES[a] = ALGEBRAIC[ass] - (ALGEBRAIC[ass] - STATES[a]) * exp(-dt / ALGEBRAIC[ta]);
-  STATES[iF] = ALGEBRAIC[iss] - (ALGEBRAIC[iss] - STATES[iF]) * exp(-dt / ALGEBRAIC[tiF]);
-  STATES[iS] = ALGEBRAIC[iss] - (ALGEBRAIC[iss] - STATES[iS]) * exp(-dt / ALGEBRAIC[tiS]);
-  STATES[ap] = ALGEBRAIC[assp] - (ALGEBRAIC[assp] - STATES[ap]) * exp(-dt / ALGEBRAIC[ta]);
-  STATES[iFp] = ALGEBRAIC[iss] - (ALGEBRAIC[iss] - STATES[iFp]) * exp(-dt / ALGEBRAIC[tiFp]);
-  STATES[iSp] = ALGEBRAIC[iss] - (ALGEBRAIC[iss] - STATES[iSp]) * exp(-dt / ALGEBRAIC[tiSp]);
+  STATES[(offset * num_of_states) + a] = ALGEBRAIC[(offset * num_of_algebraic) + ass] - (ALGEBRAIC[(offset * num_of_algebraic) + ass] - STATES[(offset * num_of_states) + a]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + ta]);
+  STATES[(offset * num_of_states) + iF] = ALGEBRAIC[(offset * num_of_algebraic) + iss] - (ALGEBRAIC[(offset * num_of_algebraic) + iss] - STATES[(offset * num_of_states) + iF]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tiF]);
+  STATES[(offset * num_of_states) + iS] = ALGEBRAIC[(offset * num_of_algebraic) + iss] - (ALGEBRAIC[(offset * num_of_algebraic) + iss] - STATES[(offset * num_of_states) + iS]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tiS]);
+  STATES[(offset * num_of_states) + ap] = ALGEBRAIC[(offset * num_of_algebraic) + assp] - (ALGEBRAIC[(offset * num_of_algebraic) + assp] - STATES[(offset * num_of_states) + ap]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + ta]);
+  STATES[(offset * num_of_states) + iFp] = ALGEBRAIC[(offset * num_of_algebraic) + iss] - (ALGEBRAIC[(offset * num_of_algebraic) + iss] - STATES[(offset * num_of_states) + iFp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tiFp]);
+  STATES[(offset * num_of_states) + iSp] = ALGEBRAIC[(offset * num_of_algebraic) + iss] - (ALGEBRAIC[(offset * num_of_algebraic) + iss] - STATES[(offset * num_of_states) + iSp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tiSp]);
   ////ICaL
-  STATES[d] = ALGEBRAIC[dss] - (ALGEBRAIC[dss] - STATES[d]) * exp(-dt / ALGEBRAIC[td]);
-  STATES[ff] = ALGEBRAIC[fss] - (ALGEBRAIC[fss] - STATES[ff]) * exp(-dt / ALGEBRAIC[tff]);
-  STATES[fs] = ALGEBRAIC[fss] - (ALGEBRAIC[fss] - STATES[fs]) * exp(-dt / ALGEBRAIC[tfs]);
-  STATES[fcaf] = ALGEBRAIC[fcass] - (ALGEBRAIC[fcass] - STATES[fcaf]) * exp(-dt / ALGEBRAIC[tfcaf]);
-  STATES[fcas] = ALGEBRAIC[fcass] - (ALGEBRAIC[fcass] - STATES[fcas]) * exp(-dt / ALGEBRAIC[tfcas]);
-  STATES[jca] = ALGEBRAIC[fcass] - (ALGEBRAIC[fcass] - STATES[jca]) * exp(- dt / CONSTANTS[tjca]);
-  STATES[ffp] = ALGEBRAIC[fss] - (ALGEBRAIC[fss] - STATES[ffp]) * exp(-dt / ALGEBRAIC[tffp]);
-  STATES[fcafp] = ALGEBRAIC[fcass] - (ALGEBRAIC[fcass] - STATES[fcafp]) * exp(-d / ALGEBRAIC[tfcafp]);
-  STATES[nca] = ALGEBRAIC[anca] * CONSTANTS[k2n] / ALGEBRAIC[km2n] -
-      (ALGEBRAIC[anca] * CONSTANTS[k2n] / ALGEBRAIC[km2n] - STATES[nca]) * exp(-ALGEBRAIC[km2n] * dt);
+  STATES[(offset * num_of_states) + d] = ALGEBRAIC[(offset * num_of_algebraic) + dss] - (ALGEBRAIC[(offset * num_of_algebraic) + dss] - STATES[(offset * num_of_states) + d]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + td]);
+  STATES[(offset * num_of_states) + ff] = ALGEBRAIC[(offset * num_of_algebraic) + fss] - (ALGEBRAIC[(offset * num_of_algebraic) + fss] - STATES[(offset * num_of_states) + ff]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tff]);
+  STATES[(offset * num_of_states) + fs] = ALGEBRAIC[(offset * num_of_algebraic) + fss] - (ALGEBRAIC[(offset * num_of_algebraic) + fss] - STATES[(offset * num_of_states) + fs]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tfs]);
+  STATES[(offset * num_of_states) + fcaf] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + fcaf]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tfcaf]);
+  STATES[(offset * num_of_states) + fcas] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + fcas]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tfcas]);
+  STATES[(offset * num_of_states) + jca] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + jca]) * exp(- dt / CONSTANTS[(offset * num_of_constants) + tjca]);
+  STATES[(offset * num_of_states) + ffp] = ALGEBRAIC[(offset * num_of_algebraic) + fss] - (ALGEBRAIC[(offset * num_of_algebraic) + fss] - STATES[(offset * num_of_states) + ffp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tffp]);
+  STATES[(offset * num_of_states) + fcafp] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + fcafp]) * exp(-d / ALGEBRAIC[(offset * num_of_algebraic) + tfcafp]);
+  STATES[(offset * num_of_states) + nca] = ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] -
+      (ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] - STATES[(offset * num_of_states) + nca]) * exp(-ALGEBRAIC[(offset * num_of_algebraic) + km2n] * dt);
   ////IKr
-  STATES[xrf] = ALGEBRAIC[xrss] - (ALGEBRAIC[xrss] - STATES[xrf]) * exp(-dt / ALGEBRAIC[txrf]);
-  STATES[xrs] = ALGEBRAIC[xrss] - (ALGEBRAIC[xrss] - STATES[xrs]) * exp(-dt / ALGEBRAIC[txrs]);
+  STATES[(offset * num_of_states) + xrf] = ALGEBRAIC[(offset * num_of_algebraic) + xrss] - (ALGEBRAIC[(offset * num_of_algebraic) + xrss] - STATES[(offset * num_of_states) + xrf]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txrf]);
+  STATES[(offset * num_of_states) + xrs] = ALGEBRAIC[(offset * num_of_algebraic) + xrss] - (ALGEBRAIC[(offset * num_of_algebraic) + xrss] - STATES[(offset * num_of_states) + xrs]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txrs]);
   ////IKs
-  STATES[xs1] = ALGEBRAIC[xs1ss] - (ALGEBRAIC[xs1ss] - STATES[xs1]) * exp(-dt / ALGEBRAIC[txs1]);
-  STATES[xs2] = ALGEBRAIC[xs2ss] - (ALGEBRAIC[xs2ss] - STATES[xs2]) * exp(-dt / ALGEBRAIC[txs2]);
+  STATES[(offset * num_of_states) + xs1] = ALGEBRAIC[(offset * num_of_algebraic) + xs1ss] - (ALGEBRAIC[(offset * num_of_algebraic) + xs1ss] - STATES[(offset * num_of_states) + xs1]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txs1]);
+  STATES[(offset * num_of_states) + xs2] = ALGEBRAIC[(offset * num_of_algebraic) + xs2ss] - (ALGEBRAIC[(offset * num_of_algebraic) + xs2ss] - STATES[(offset * num_of_states) + xs2]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txs2]);
   ////IK1
-  STATES[xk1] = ALGEBRAIC[xk1ss] - (ALGEBRAIC[xk1ss] - STATES[xk1]) * exp(-dt / ALGEBRAIC[txk1]);
+  STATES[(offset * num_of_states) + xk1] = ALGEBRAIC[(offset * num_of_algebraic) + xk1ss] - (ALGEBRAIC[(offset * num_of_algebraic) + xk1ss] - STATES[(offset * num_of_states) + xk1]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txk1]);
   ////INaCa
   ////INaK
   ////IKb
@@ -545,8 +552,8 @@ __global__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, dou
   ///IpCa
   ////Diffusion fluxes
   ////RyR receptors
-  STATES[Jrelnp] = ALGEBRAIC[Jrel_inf] - (ALGEBRAIC[Jrel_inf] - STATES[Jrelnp]) * exp(-dt / ALGEBRAIC[tau_rel]);
-  STATES[Jrelp] = ALGEBRAIC[Jrel_infp] - (ALGEBRAIC[Jrel_infp] - STATES[Jrelp]) * exp(-dt / ALGEBRAIC[tau_relp]);
+  STATES[(offset * num_of_states) + Jrelnp] = ALGEBRAIC[(offset * num_of_algebraic) + Jrel_inf] - (ALGEBRAIC[(offset * num_of_algebraic) + Jrel_inf] - STATES[(offset * num_of_states) + Jrelnp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tau_rel]);
+  STATES[(offset * num_of_states) + Jrelp] = ALGEBRAIC[(offset * num_of_algebraic) + Jrel_infp] - (ALGEBRAIC[(offset * num_of_algebraic) + Jrel_infp] - STATES[(offset * num_of_states) + Jrelp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tau_relp]);
   ////SERCA Pump
   ////Calcium translocation
   //
@@ -556,18 +563,18 @@ __global__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, dou
   ////ICaL
   //STATES[jca] = STATES[jca] + RATES[jca] * dt;
   ////CaMK
-  STATES[CaMKt] = STATES[CaMKt] + RATES[CaMKt] * dt;
+  STATES[(offset * num_of_states) + CaMKt] = STATES[(offset * num_of_states) + CaMKt] + RATES[(offset * num_of_rates) + CaMKt] * dt;
   ////Membrane potential
-  STATES[V] = STATES[V] + RATES[V] * dt;
+  STATES[(offset * num_of_states) + V] = STATES[(offset * num_of_states) + V] + RATES[(offset * num_of_rates) + V] * dt;
   ////Ion Concentrations and Buffers
-  STATES[nai] = STATES[nai] + RATES[nai] * dt;
-  STATES[nass] = STATES[nass] + RATES[nass] * dt;
-  STATES[ki] = STATES[ki] + RATES[ki] * dt;
-  STATES[kss] = STATES[kss] + RATES[kss] * dt;
-  STATES[cai] = STATES[cai] + RATES[cai] * dt;
-  STATES[cass] = STATES[cass] + RATES[cass] * dt;
-  STATES[cansr] = STATES[cansr] + RATES[cansr] * dt;
-  STATES[cajsr] = STATES[cajsr] + RATES[cajsr] * dt; 
+  STATES[(offset * num_of_states) + nai] = STATES[(offset * num_of_states) + nai] + RATES[(offset * num_of_rates) + nai] * dt;
+  STATES[(offset * num_of_states) + nass] = STATES[(offset * num_of_states) + nass] + RATES[(offset * num_of_rates) + nass] * dt;
+  STATES[(offset * num_of_states) + ki] = STATES[(offset * num_of_states) + ki] + RATES[(offset * num_of_rates) + ki] * dt;
+  STATES[(offset * num_of_states) + kss] = STATES[(offset * num_of_states) + kss] + RATES[(offset * num_of_rates) + kss] * dt;
+  STATES[(offset * num_of_states) + cai] = STATES[(offset * num_of_states) + cai] + RATES[(offset * num_of_rates) + cai] * dt;
+  STATES[(offset * num_of_states) + cass] = STATES[(offset * num_of_states) + cass] + RATES[(offset * num_of_rates) + cass] * dt;
+  STATES[(offset * num_of_states) + cansr] = STATES[(offset * num_of_states) + cansr] + RATES[(offset * num_of_rates) + cansr] * dt;
+  STATES[(offset * num_of_states) + cajsr] = STATES[(offset * num_of_states) + cajsr] + RATES[(offset * num_of_rates) + cajsr] * dt; 
   //========================
   //Full Euler Approximation
   //========================
@@ -674,22 +681,77 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES){
- unsigned short sample_id;
+__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC){
+    unsigned short sample_id;
     sample_id = threadIdx.x;
     // printf("Sample_ID:%d \nData: ",sample_id );
         
-    for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
+    // for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
         // printf("Core %d ic50[%d]: %lf \n",sample_id, z, d_ic50[z]);
-    }
-    // printf("Core %d:\n",sample_id);
-    initConsts(d_CONSTANTS, d_STATES);
-    applyDrugEffect(99.0,d_ic50,1E-14,d_CONSTANTS);
+    // }
 
     double tcurr = 0.0, dt = 0.005, dt_set, tmax;
     double max_time_step = 1.0, time_point = 25.0;
 
-    dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
+    // files for storing results
+    // time-series result
+    // FILE *fp_vm, *fp_inet, *fp_gate;
+
+    // features
+    // double inet, qnet;
+
+    // looping counter
+    // unsigned short idx;
+  
+    // simulation parameters
+    // double dtw = 2.0;
+    // const char *drug_name = "bepridil";
+    const double bcl = 2000;
+    // const double bcl = 0.001;
+    // const double inet_vm_threshold = -88.0;
+    const unsigned short pace_max = 10;
+    // const unsigned short celltype = 0.;
+    // const unsigned short last_pace_print = 3;
+    // const unsigned short last_drug_check_pace = 250;
+    // const unsigned int print_freq = (1./dt) * dtw;
+    // unsigned short pace_count = 0;
+    // unsigned short pace_steepest = 0;
+    double conc = 99.0;
+
+
+    // printf("Core %d:\n",sample_id);
+    initConsts(d_CONSTANTS, d_STATES);
+
+    applyDrugEffect(conc,d_ic50,1E-14,d_CONSTANTS);
+
+    d_CONSTANTS[stim_period] = bcl;
+
+    // generate file for time-series output
+    
+
+    tmax = pace_max * bcl;
+
+    while (tcurr<tmax){
+        dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
+        computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
+        //Compute the correct/accepted time step
+        if (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl)) {
+          dt = dt_set;
+        }
+        else {
+          dt = (floor(tcurr / bcl) + 1) * bcl - tcurr;
+        }
+        solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
+        tcurr = tcurr + dt;
+
+        printf("Core: %d, tcurr: %lf, States[v]: %lf\n", sample_id, tcurr, d_STATES[V]);
+    }
+    // printf("\n");
+    // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
+    //       printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
+    // }
+
+    
 
 
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -726,10 +788,10 @@ int main()
     // else if(ic50.size() > 2000)
     //     printf("Too much input! Maximum sample data is 2000!\n");
 
-    double ALGEBRAIC[num_of_algebraic * sample_size];
-    double CONSTANTS[num_of_constants * sample_size];
-    double RATES[num_of_rates * sample_size];
-    double STATES[num_of_states * sample_size];
+    // double ALGEBRAIC[num_of_algebraic * sample_size];
+    // double CONSTANTS[num_of_constants * sample_size];
+    // double RATES[num_of_rates * sample_size];
+    // double STATES[num_of_states * sample_size];
 
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
     cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double));
@@ -739,7 +801,7 @@ int main()
     cudaMalloc(&d_ic50, sizeof(drug_t));
     cudaMemcpy(d_ic50, ic50, sizeof(drug_t), cudaMemcpyHostToDevice);
 
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES);
+    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     cudaDeviceSynchronize();
     // unsigned short sample_id;
     // for( sample_id = 0;
