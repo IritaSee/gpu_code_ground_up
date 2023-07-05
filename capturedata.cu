@@ -1,11 +1,31 @@
 #include "cuda_runtime.h"
 #include <iostream>
 #include <math.h>
+#include <ctime>
 
 #include "modules/globals.hpp"
 #include "modules/commons.hpp"
 
 #include "enums/enum_mar_cell_MKII.cuh"
+
+clock_t START_TIMER;
+
+clock_t tic();
+void toc(clock_t start = START_TIMER);
+
+clock_t tic()
+{
+    return START_TIMER = clock();
+}
+
+void toc(clock_t start)
+{
+    std::cout
+        << "Elapsed time: "
+        << (clock() - start) / (double)CLOCKS_PER_SEC << "s"
+        << std::endl;
+}
+
 // -----------------------------------------
 __device__ void initConsts(double* CONSTANTS, double* STATES){
 int offset = threadIdx.x;
@@ -247,7 +267,7 @@ __device__ double set_time_step(
 
 
 
-__device__ void computeRates(double TIME, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
+__device__ void computeRates(double TIME, double* &CONSTANTS, double* &RATES, double* &STATES, double* &ALGEBRAIC)
 {
 int num_of_constants = 146;
 int num_of_states = 41;
@@ -496,7 +516,7 @@ RATES[(offset * num_of_rates) + cajsr] =  ALGEBRAIC[(offset * num_of_algebraic) 
 RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]);
 }
 
-__device__ void solveAnalytical(double dt, double* CONSTANTS, double* RATES, double* STATES, double* ALGEBRAIC)
+__device__ void solveAnalytical(double dt, double* &CONSTANTS, double* &RATES, double* &STATES, double* &ALGEBRAIC)
 { 
 
   int num_of_constants = 146;
@@ -709,7 +729,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     const double bcl = 2000;
     // const double bcl = 0.001;
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 10;
+    const unsigned short pace_max = 2;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -744,7 +764,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
 
-        printf("Core: %d, tcurr: %lf, States[v]: %lf\n", sample_id, tcurr, d_STATES[V]);
+        printf("%d,%lf,%lf\n", sample_id, tcurr, d_STATES[V]);
     }
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -801,6 +821,8 @@ int main()
     cudaMalloc(&d_ic50, sizeof(drug_t));
     cudaMemcpy(d_ic50, ic50, sizeof(drug_t), cudaMemcpyHostToDevice);
 
+    tic();
+
     do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     cudaDeviceSynchronize();
     // unsigned short sample_id;
@@ -817,6 +839,6 @@ int main()
     //     printf("\n");
 
     // } // end sample loop
-    
+    toc();
     return 0;
 }
