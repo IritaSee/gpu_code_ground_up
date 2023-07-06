@@ -27,7 +27,7 @@ void toc(clock_t start)
 }
 
 // -----------------------------------------
-__device__ void initConsts(double* CONSTANTS, double* STATES){
+__device__ void initConsts(double *CONSTANTS, double *STATES){
 int offset = threadIdx.x;
 int num_of_constants = 146;
 int num_of_states = 41;
@@ -226,15 +226,15 @@ __device__ double set_time_step(
     double max_time_step,
     double* CONSTANTS,
     double* RATES) 
-    {
 
+    {
     double time_step = 0.005;
     int offset = threadIdx.x;
     int num_of_constants = 146;
     int num_of_rates = 41; 
 
-    if (TIME <= time_point || (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)]) <= time_point) {
-        // printf("TIME <= time_point ms\n");
+    if (TIME <= time_point || (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ) <= time_point) {
+        // printf("TIME <= time_point ms for core %d \n", offset);
           // printf("dV = %lf, time_step = %lf\n",RATES[V] * time_step, time_step);
         return time_step;
       
@@ -267,13 +267,14 @@ __device__ double set_time_step(
 
 
 
-__device__ void computeRates(double TIME, double* &CONSTANTS, double* &RATES, double* &STATES, double* &ALGEBRAIC)
+__device__ void computeRates(double TIME, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
 {
 int num_of_constants = 146;
 int num_of_states = 41;
 int num_of_algebraic = 199;
 int num_of_rates = 41;
 int offset = threadIdx.x; 
+// printf("current computeRates offset: %d\n", offset);
 
 ALGEBRAIC[vffrt + (offset * num_of_algebraic)] = ( STATES[V + (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R+ (offset * num_of_constants)]*CONSTANTS[T+ (offset * num_of_constants)]);
 ALGEBRAIC[vfrt + (offset * num_of_algebraic)] = ( STATES[V+ (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R + (offset * num_of_constants)]*CONSTANTS[T + (offset * num_of_constants)]);
@@ -516,7 +517,7 @@ RATES[(offset * num_of_rates) + cajsr] =  ALGEBRAIC[(offset * num_of_algebraic) 
 RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]);
 }
 
-__device__ void solveAnalytical(double dt, double* &CONSTANTS, double* &RATES, double* &STATES, double* &ALGEBRAIC)
+__device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
 { 
 
   int num_of_constants = 146;
@@ -524,6 +525,7 @@ __device__ void solveAnalytical(double dt, double* &CONSTANTS, double* &RATES, d
   int num_of_algebraic = 199;
   int num_of_rates = 41;
   int offset = threadIdx.x; 
+  // printf("current solveAnalytical offset: %d\n", offset);
 
   ////==============
   ////Exact solution
@@ -701,16 +703,17 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC){
+__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, double *dt_set){
     unsigned short sample_id;
     sample_id = threadIdx.x;
+    int num_of_constants = 146;
     // printf("Sample_ID:%d \nData: ",sample_id );
         
     // for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
         // printf("Core %d ic50[%d]: %lf \n",sample_id, z, d_ic50[z]);
     // }
 
-    double tcurr = 0.0, dt = 0.005, dt_set, tmax;
+    double tcurr = 0.0, dt = 0.005, tmax;
     double max_time_step = 1.0, time_point = 25.0;
 
     // files for storing results
@@ -726,7 +729,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     // simulation parameters
     // double dtw = 2.0;
     // const char *drug_name = "bepridil";
-    const double bcl = 2000;
+    const double bcl = 2000; // bcl is basic cycle length
     // const double bcl = 0.001;
     // const double inet_vm_threshold = -88.0;
     const unsigned short pace_max = 2;
@@ -744,27 +747,28 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
 
     applyDrugEffect(conc,d_ic50,1E-14,d_CONSTANTS);
 
-    d_CONSTANTS[stim_period] = bcl;
+    d_CONSTANTS[stim_period + (sample_id * num_of_constants)] = bcl;
 
     // generate file for time-series output
-    
 
     tmax = pace_max * bcl;
 
     while (tcurr<tmax){
-        dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
+        dt_set[sample_id] = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
         computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
+
         //Compute the correct/accepted time step
-        if (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl)) {
-          dt = dt_set;
+        if (floor((tcurr + dt_set[sample_id]) / bcl) == floor(tcurr / bcl)) {
+          dt = dt_set[sample_id];
         }
         else {
           dt = (floor(tcurr / bcl) + 1) * bcl - tcurr;
         }
+
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
 
-        printf("%d,%lf,%lf\n", sample_id, tcurr, d_STATES[V]);
+        printf("%d,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V]);
     }
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -785,7 +789,6 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
  
 }
 
-double concs[4];
 int main()
 {
     double *d_ic50;
@@ -823,7 +826,11 @@ int main()
 
     tic();
 
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    double *dt_set;
+    cudaMalloc(&dt_set, sample_size * sizeof(double) );
+    printf("core,dt_set,tcurr,states\n");
+    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
     // unsigned short sample_id;
     // for( sample_id = 0;
