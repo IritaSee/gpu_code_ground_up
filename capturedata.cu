@@ -232,9 +232,13 @@ __device__ double set_time_step(
     int offset = threadIdx.x;
     int num_of_constants = 146;
     int num_of_rates = 41; 
-
+    // core selain 0 banyak masuk ke if ini, jadi time step nya stuck 
+    // di semua core pun, kalo semisal tcurr (TIME) udah di atas time_point (25.0), harusnya logika kedua bernilai false biar ada update time_step
+    // core selain 0 sepertinya selalu true buat logika kedua.
+    // koreksi, gak ternyata, ternyata core2 lain gak masuk ke if ini, udah masuk else, 
     if (TIME <= time_point || (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ) <= time_point) {
         // printf("TIME <= time_point ms for core %d \n", offset);
+        printf(" untuk core %d masuk if pertama dengan nilai perhitungan sisi kedua: %lf\n", offset, (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ));
           // printf("dV = %lf, time_step = %lf\n",RATES[V] * time_step, time_step);
         return time_step;
       
@@ -242,8 +246,10 @@ __device__ double set_time_step(
     else {
         //printf("TIME > time_point ms\n");
         if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) <= 0.2) {//Slow changes in V
-            //printf("dV/dt <= 0.2\n");
-            time_step = std::abs(0.8 / RATES[V + (offset * num_of_rates)]);
+        // hanya core 0 yang berhasil masuk ke if ini
+            // printf("dV/dt <= 0.2 for core %d\n", offset);
+            time_step = std::abs(0.8 / RATES[V + (offset * num_of_rates)] );
+            printf("untuk core %d masuk if kedua dengan nilai time step %lf", offset, time_step);
             //Make sure time_step is between 0.005 and max_time_step
             if (time_step < 0.005) {
                 time_step = 0.005;
@@ -254,8 +260,10 @@ __device__ double set_time_step(
             // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
         }
         else if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) >= 0.8) {//Fast changes in V
+        // core lain gak pernah masuk sini!
             //printf("dV/dt >= 0.8\n");
             time_step = std::abs(0.2 / RATES[V+ (offset * num_of_rates)]);
+            printf("untuk core %d masuk else dari if kedua dengan nilai time step %lf", offset, time_step);
             while (std::abs(RATES[V+ (offset * num_of_rates)] * time_step) >= 0.8 && 0.005 < time_step && time_step < max_time_step) {
                 time_step = time_step / 10.0;
                 // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
