@@ -31,6 +31,7 @@ __device__ void initConsts(double *CONSTANTS, double *STATES){
 int offset = threadIdx.x;
 int num_of_constants = 146;
 int num_of_states = 41;
+// printf("init const for core %d\n",offset);
 CONSTANTS[celltype+(offset * num_of_constants)] = 0;
 CONSTANTS[R+(offset * num_of_constants)] = 8314;
 CONSTANTS[T+(offset * num_of_constants)] = 310;
@@ -186,8 +187,10 @@ STATES[hsp+(offset * num_of_states)] = 1;
 STATES[V+(offset * num_of_states)] = -87;
 STATES[CaMKt+(offset * num_of_states)] = 0;
 STATES[cass+(offset * num_of_states)] = 1e-4;
+
 STATES[nai+(offset * num_of_states)] = 7;
 STATES[mL+(offset * num_of_states)] = 0;
+
 STATES[hL+(offset * num_of_states)] = 1;
 STATES[hLp+(offset * num_of_states)] = 1;
 STATES[a+(offset * num_of_states)] = 0;
@@ -218,6 +221,12 @@ STATES[cansr+(offset * num_of_states)] = 1.2;
 STATES[Jrelnp+(offset * num_of_states)] = 0;
 STATES[Jrelp+(offset * num_of_states)] = 0;
 STATES[cajsr+(offset * num_of_states)] = 1.2;
+// for (int zz = 0; zz < num_of_constants; zz++){
+//   printf("core %d, constants[%d] = %lf\n", offset, zz, CONSTANTS[zz]);
+// }
+// for (int aa = 0; aa < num_of_states; aa++){
+//   printf("core %d, states[%d] = %lf\n", offset, aa, STATES[aa]);
+// }
 }
 
 __device__ double set_time_step(
@@ -238,18 +247,20 @@ __device__ double set_time_step(
     // koreksi, gak ternyata, ternyata core2 lain gak masuk ke if ini, udah masuk else, 
     if (TIME <= time_point || (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ) <= time_point) {
         // printf("TIME <= time_point ms for core %d \n", offset);
-        printf(" untuk core %d masuk if pertama dengan nilai perhitungan sisi kedua: %lf\n", offset, (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ));
+        //printf(" untuk core %d masuk if pertama dengan nilai perhitungan sisi kedua: %lf\n", offset, (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ));
           // printf("dV = %lf, time_step = %lf\n",RATES[V] * time_step, time_step);
         return time_step;
       
     }
     else {
+          //printf("core %d gak masuk if pertama, jadi masuk else, dengan nilai kondisional %lf \n", offset, std::abs(RATES[V + (offset * num_of_rates)] * time_step));
+          //printf("nilai rates di core %d: %lf\n",offset, RATES[V + (offset * num_of_rates)]);
         //printf("TIME > time_point ms\n");
         if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) <= 0.2) {//Slow changes in V
         // hanya core 0 yang berhasil masuk ke if ini
             // printf("dV/dt <= 0.2 for core %d\n", offset);
             time_step = std::abs(0.8 / RATES[V + (offset * num_of_rates)] );
-            printf("untuk core %d masuk if kedua dengan nilai time step %lf", offset, time_step);
+            //printf("untuk core %d masuk if kedua dengan nilai time step %lf\n", offset, time_step);
             //Make sure time_step is between 0.005 and max_time_step
             if (time_step < 0.005) {
                 time_step = 0.005;
@@ -260,10 +271,10 @@ __device__ double set_time_step(
             // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
         }
         else if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) >= 0.8) {//Fast changes in V
-        // core lain gak pernah masuk sini!
+        // core lain gak pernah masuk sini! Bahkan gak pernah ada yang masuk ke sini, 
             //printf("dV/dt >= 0.8\n");
             time_step = std::abs(0.2 / RATES[V+ (offset * num_of_rates)]);
-            printf("untuk core %d masuk else dari if kedua dengan nilai time step %lf", offset, time_step);
+            //printf("untuk core %d masuk else dari if kedua dengan nilai time step %lf\n", offset, time_step);
             while (std::abs(RATES[V+ (offset * num_of_rates)] * time_step) >= 0.8 && 0.005 < time_step && time_step < max_time_step) {
                 time_step = time_step / 10.0;
                 // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
@@ -282,7 +293,6 @@ int num_of_states = 41;
 int num_of_algebraic = 199;
 int num_of_rates = 41;
 int offset = threadIdx.x; 
-// printf("current computeRates offset: %d\n", offset);
 
 ALGEBRAIC[vffrt + (offset * num_of_algebraic)] = ( STATES[V + (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R+ (offset * num_of_constants)]*CONSTANTS[T+ (offset * num_of_constants)]);
 ALGEBRAIC[vfrt + (offset * num_of_algebraic)] = ( STATES[V+ (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R + (offset * num_of_constants)]*CONSTANTS[T + (offset * num_of_constants)]);
@@ -303,13 +313,17 @@ ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_
 ALGEBRAIC[CaMKb + (offset * num_of_algebraic) ] = ( CONSTANTS[CaMKo + (offset * num_of_constants) ]*(1.00000 - STATES[CaMKt + (offset * num_of_states)]))/(1.00000+CONSTANTS[KmCaM + (offset * num_of_constants)]/STATES[cass + (offset * num_of_states)]);
 ALGEBRAIC[CaMKa + (offset * num_of_algebraic) ] = ALGEBRAIC[CaMKb + (offset * num_of_algebraic) ]+STATES[CaMKt + (offset * num_of_states)];
 ALGEBRAIC[fINap + (offset * num_of_algebraic) ] = 1.00000/(1.00000+CONSTANTS[KmCaMK + (offset * num_of_constants)]/ALGEBRAIC[CaMKa + (offset * num_of_algebraic)]);
-ALGEBRAIC[INa + (offset * num_of_algebraic) ] =  CONSTANTS[GNa + (offset * num_of_constants)]*(STATES[V + (offset * num_of_states) ] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*pow(STATES[m + (offset * num_of_states)], 3.00000)*( (1.00000 - ALGEBRAIC[fINap + (offset * num_of_algebraic)])*ALGEBRAIC[h + (offset * num_of_algebraic)]*STATES[j + (offset * num_of_states)]+ ALGEBRAIC[fINap + (offset * num_of_algebraic)]*ALGEBRAIC[hp+ (offset * num_of_algebraic)]*STATES[jp + (offset * num_of_states)]);
+
+ALGEBRAIC[INa + (offset * num_of_algebraic) ] =  CONSTANTS[GNa + (offset * num_of_constants)]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*pow(STATES[m + (offset * num_of_states)], 3.00000)*( (1.00000 - ALGEBRAIC[fINap + (offset * num_of_algebraic)])*ALGEBRAIC[h + (offset * num_of_algebraic)]*STATES[j + (offset * num_of_states)]+ ALGEBRAIC[fINap + (offset * num_of_algebraic)]*ALGEBRAIC[hp+ (offset * num_of_algebraic)]*STATES[jp + (offset * num_of_states)]);
+
 ALGEBRAIC[mLss + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)]+42.8500)/5.26400));
 ALGEBRAIC[tmL + (offset * num_of_algebraic)] = ALGEBRAIC[tm + (offset * num_of_algebraic)];
 ALGEBRAIC[hLss + (offset * num_of_algebraic)] = 1.00000/(1.00000+exp((STATES[V + (offset * num_of_states) ]+87.6100)/7.48800));
 ALGEBRAIC[hLssp + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp((STATES[V + (offset * num_of_states)]+93.8100)/7.48800));
 ALGEBRAIC[fINaLp + (offset * num_of_algebraic)] = 1.00000/(1.00000+CONSTANTS[KmCaMK + (offset * num_of_constants)]/ALGEBRAIC[CaMKa + (offset * num_of_algebraic)]);
+
 ALGEBRAIC[INaL + (offset * num_of_algebraic) ] =  CONSTANTS[GNaL + (offset * num_of_constants) ]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*STATES[mL + (offset * num_of_states) ]*( (1.00000 - ALGEBRAIC[fINaLp + (offset * num_of_algebraic)])*STATES[hL + (offset * num_of_states) ]+ ALGEBRAIC[fINaLp + (offset * num_of_algebraic) ]*STATES[hLp + (offset * num_of_states) ]);
+
 ALGEBRAIC[INab + (offset * num_of_algebraic) ] = ( CONSTANTS[PNab + (offset * num_of_constants)]*ALGEBRAIC[vffrt + (offset * num_of_algebraic) ]*( STATES[nai]*exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - CONSTANTS[nao + (offset * num_of_constants)]))/(exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - 1.00000);
 ALGEBRAIC[ass + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)] - 14.3400)/14.8200));
 ALGEBRAIC[ta + (offset * num_of_algebraic) ] = 1.05150/(1.00000/( 1.20890*(1.00000+exp(- (STATES[V + (offset * num_of_states)] - 18.4099)/29.3814)))+3.50000/(1.00000+exp((STATES[V + (offset * num_of_states)]+100.000)/29.3814)));
@@ -323,6 +337,7 @@ ALGEBRAIC[AiF + (offset * num_of_algebraic)] = 1.00000/(1.00000+exp((STATES[V + 
 ALGEBRAIC[AiS + (offset * num_of_algebraic)] = 1.00000 - ALGEBRAIC[AiF + (offset * num_of_algebraic)];
 ALGEBRAIC[i + (offset * num_of_algebraic)] =  ALGEBRAIC[AiF + (offset * num_of_algebraic) ]*STATES[iF + (offset * num_of_states) ]+ ALGEBRAIC[AiS + (offset * num_of_algebraic)]*STATES[iS + (offset * num_of_states)];
 ALGEBRAIC[assp + (offset * num_of_algebraic)] = 1.00000/(1.00000+exp(- (STATES[(offset * num_of_states) + V] - 24.3400)/14.8200));
+
 ALGEBRAIC[(offset * num_of_algebraic) + dti_develop] = 1.35400+0.000100000/(exp((STATES[(offset * num_of_states) + V] - 167.400)/15.8900)+exp(- (STATES[(offset * num_of_states) + V] - 12.2300)/0.215400));
 ALGEBRAIC[(offset * num_of_algebraic) + dti_recover] = 1.00000 - 0.500000/(1.00000+exp((STATES[(offset * num_of_states) + V]+70.0000)/20.0000));
 ALGEBRAIC[(offset * num_of_algebraic) + tiFp] = ALGEBRAIC[(offset * num_of_algebraic) + dti_develop] * ALGEBRAIC[(offset * num_of_algebraic) + dti_recover] * ALGEBRAIC[(offset * num_of_algebraic) + tiF];
@@ -514,7 +529,9 @@ RATES[(offset * num_of_rates) + fcafp] = (ALGEBRAIC[(offset * num_of_algebraic) 
 RATES[(offset * num_of_rates) + Jrelnp] = (ALGEBRAIC[(offset * num_of_algebraic) + Jrel_inf] - STATES[(offset * num_of_states) + Jrelnp])/ALGEBRAIC[(offset * num_of_algebraic) + tau_rel];
 RATES[(offset * num_of_rates) + Jrelp] = (ALGEBRAIC[(offset * num_of_algebraic) + Jrel_infp] - STATES[(offset * num_of_states) + Jrelp])/ALGEBRAIC[(offset * num_of_algebraic) + tau_relp];
 RATES[(offset * num_of_rates) + CaMKt] =  CONSTANTS[(offset * num_of_constants) + aCaMK]*ALGEBRAIC[(offset * num_of_algebraic) + CaMKb]*(ALGEBRAIC[(offset * num_of_algebraic) + CaMKb]+STATES[(offset * num_of_states) + CaMKt]) -  CONSTANTS[(offset * num_of_constants) + bCaMK]*STATES[(offset * num_of_states) + CaMKt];
+
 RATES[(offset * num_of_rates) + nai] = ( - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab])*CONSTANTS[(offset * num_of_constants) + Acap]*CONSTANTS[(offset * num_of_constants) + cm])/( CONSTANTS[(offset * num_of_constants) + F]*CONSTANTS[(offset * num_of_constants) + vmyo])+( ALGEBRAIC[(offset * num_of_algebraic) + JdiffNa]*CONSTANTS[(offset * num_of_constants) + vss])/CONSTANTS[(offset * num_of_constants) + vmyo];
+
 RATES[(offset * num_of_rates) + nass] = ( - (ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss])*CONSTANTS[(offset * num_of_constants) + cm]*CONSTANTS[(offset * num_of_constants) + Acap])/( CONSTANTS[(offset * num_of_constants) + F]*CONSTANTS[(offset * num_of_constants) + vss]) - ALGEBRAIC[(offset * num_of_algebraic) + JdiffNa];
 RATES[(offset * num_of_rates) + ki] = ( - ((ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]) -  2.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK])*CONSTANTS[(offset * num_of_constants) + cm]*CONSTANTS[(offset * num_of_constants) + Acap])/( CONSTANTS[(offset * num_of_constants) + F]*CONSTANTS[(offset * num_of_constants) + vmyo])+( ALGEBRAIC[(offset * num_of_algebraic) + JdiffK]*CONSTANTS[(offset * num_of_constants) + vss])/CONSTANTS[(offset * num_of_constants) + vmyo];
 RATES[(offset * num_of_rates) + kss] = ( - ALGEBRAIC[(offset * num_of_algebraic) + ICaK]*CONSTANTS[(offset * num_of_constants) + cm]*CONSTANTS[(offset * num_of_constants) + Acap])/( CONSTANTS[(offset * num_of_constants) + F]*CONSTANTS[(offset * num_of_constants) + vss]) - ALGEBRAIC[(offset * num_of_algebraic) + JdiffK];
@@ -523,6 +540,43 @@ RATES[(offset * num_of_rates) + cass] =  ALGEBRAIC[(offset * num_of_algebraic) +
 RATES[(offset * num_of_rates) + cansr] = ALGEBRAIC[(offset * num_of_algebraic) + Jup] - ( ALGEBRAIC[(offset * num_of_algebraic) + Jtr]*CONSTANTS[(offset * num_of_constants) + vjsr])/CONSTANTS[(offset * num_of_constants) + vnsr];
 RATES[(offset * num_of_rates) + cajsr] =  ALGEBRAIC[(offset * num_of_algebraic) + Bcajsr]*(ALGEBRAIC[(offset * num_of_algebraic) + Jtr] - ALGEBRAIC[(offset * num_of_algebraic) + Jrel]);
 RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]);
+// for (int ZZZ = 0 ; ZZZ < num_of_rates; ZZZ++){
+  // printf("core %d, nilai pembilang nai = %lf\n", offset, - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab])*CONSTANTS[(offset * num_of_constants) + Acap]*CONSTANTS[(offset * num_of_constants) + cm]);
+  // printf("core %d, nilai pembilang INa = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INa]); //nan
+  // printf("core %d, nilai pembilang INaL = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INaL]); //nan
+  // printf("core %d, nilai pembilang INaCa_i = %lf\n", offset, 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]);
+  // printf("core %d, nilai pembilang INaK = %lf\n", offset, 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK]);
+  // printf("core %d, nilai pembilang INab = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INab]);
+  // printf("core %d, nilai pembilang acap = %lf\n", offset, CONSTANTS[(offset * num_of_constants) + Acap]);
+  // printf("core %d, nilai pembilang cm = %lf\n", offset, CONSTANTS[(offset * num_of_constants) + cm]);
+  // printf("core %d, nilai states m : %lf\n", offset, STATES[m + (offset * num_of_states)]);
+  // printf("core %d, nilai algebraic[tm] : %lf\n", offset, ALGEBRAIC[tm + (offset * num_of_algebraic)]);
+  // // ( CONSTANTS[mtD1 + (offset * num_of_constants)]*exp((STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)])/CONSTANTS[mtV2 + (offset * num_of_constants)])+ CONSTANTS[mtD2 + (offset * num_of_constants) ]*exp(- (STATES[V + (offset * num_of_states) ]+CONSTANTS[mtV3 + (offset * num_of_constants)])/CONSTANTS[mtV4 + (offset * num_of_constants)]))
+  // printf("core %d, nilai constants[mtD1] : %lf\n", offset, CONSTANTS[mtD1 + (offset * num_of_constants)]);
+  // printf("core %d, nilai constants[mtV2] : %lf\n", offset, CONSTANTS[mtV2 + (offset * num_of_constants)]);
+  // printf("core %d, nilai constants[mtD2] : %lf\n", offset, CONSTANTS[mtD2 + (offset * num_of_constants)]);
+  // printf("core %d, nilai constants[mtV4] : %lf\n", offset, CONSTANTS[mtV4 + (offset * num_of_constants)]);
+  // printf("core %d, nilai constants[mtV1] : %lf\n", offset, CONSTANTS[mtV1 + (offset * num_of_constants)]);
+  // printf("core %d, nilai pembilang tm  : %lf\n", offset, (STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)]));
+  // printf("core %d, nilai exp pertama : %lf\n", offset, (STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)])  /  CONSTANTS[mtV2 + (offset * num_of_constants)]  );
+  // printf("core %d, nilai rates[v] : %lf\n", offset, - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]));
+  // // rates v NaN karena INa dan INaL bernilai NaN juga, jadi mau operasi pertambahan pun, hasilnya bakal nan. 
+
+  // printf("core %d, nilai INa = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INa]); //nan
+  // printf("core %d, nilai INaL = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INaL]); //nan
+  // // ALGEBRAIC[INaL + (offset * num_of_algebraic) ] =  CONSTANTS[GNaL + (offset * num_of_constants) ]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*STATES[mL + (offset * num_of_states) ]*( (1.00000 - ALGEBRAIC[fINaLp + (offset * num_of_algebraic)])*STATES[hL + (offset * num_of_states) ]+ ALGEBRAIC[fINaLp + (offset * num_of_algebraic) ]*STATES[hLp + (offset * num_of_states) ]);
+  // printf("core %d, nilai Gnal = %lf\n", offset, CONSTANTS[GNaL + (offset * num_of_constants)] );
+  // printf("core %d, nilai ENa = %lf\n", offset, ALGEBRAIC[ENa + (offset * num_of_algebraic)] ); //inf atau -nan
+  // ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ])/CONSTANTS[F + (offset * num_of_constants) ])*log(CONSTANTS[nao + (offset * num_of_constants)]/STATES[nai + (offset * num_of_constants)]);
+  // printf("core %d, nilai pembilang ENa = %lf\n", offset, ( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ]) );
+  // printf("core %d, nilai penyebut ENa = %lf\n", offset, CONSTANTS[F + (offset * num_of_constants) ])*log( CONSTANTS[nao + (offset * num_of_constants)] / STATES[nai + (offset * num_of_constants)] );
+  // printf("core %d, uraian ENa = (( %lf * %lf )/ %lf )*log(%lf / %lf );\n", offset, CONSTANTS[R + (offset * num_of_constants) ], CONSTANTS[T + (offset * num_of_constants) ], CONSTANTS[F + (offset * num_of_constants) ], CONSTANTS[nao + (offset * num_of_constants)], STATES[nai + (offset * num_of_constants)] );
+ 
+  // printf("core %d, nilai mL = %lf\n", offset,STATES[mL + (offset * num_of_states) ]); //nan 
+  // printf("core %d, mLss : %lf\n", offset,  1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)]+42.8500)/5.26400)));
+  // printf("core %d, update mL  = (%lf - %lf)/ %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + mLss],  STATES[(offset * num_of_states) + mL], ALGEBRAIC[(offset * num_of_algebraic) + tmL]); 
+// }
+
 }
 
 __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
@@ -715,6 +769,8 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     unsigned short sample_id;
     sample_id = threadIdx.x;
     int num_of_constants = 146;
+    int num_of_states = 41;
+    int num_of_rates = 41;
     // printf("Sample_ID:%d \nData: ",sample_id );
         
     // for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
@@ -740,7 +796,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     const double bcl = 2000; // bcl is basic cycle length
     // const double bcl = 0.001;
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 2;
+    const unsigned short pace_max = 5;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -760,23 +816,27 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     // generate file for time-series output
 
     tmax = pace_max * bcl;
+  
+    // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
 
     while (tcurr<tmax){
         dt_set[sample_id] = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
-        computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
-
+        computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
+        // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
         //Compute the correct/accepted time step
         if (floor((tcurr + dt_set[sample_id]) / bcl) == floor(tcurr / bcl)) {
+          // printf("timestep not corrected in core %d \n", sample_id);
           dt = dt_set[sample_id];
         }
         else {
           dt = (floor(tcurr / bcl) + 1) * bcl - tcurr;
+          // printf("timestep corrected in core %d \n", sample_id);
         }
 
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
 
-        printf("%d,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V]);
+        printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
     }
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -812,7 +872,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples10.csv");
+      "./IC50_samples2.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -829,6 +889,11 @@ int main()
     cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double));
     cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double));
 
+    // printf("cuda malloc status for algebraic: %d\n", cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double))) ;
+    // printf("cuda malloc status for constants: %d\n", cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double)));
+    // printf("cuda malloc status for rates: %d\n", cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double)));
+    // printf("cuda malloc status for states: %d\n",cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double)));
+
     cudaMalloc(&d_ic50, sizeof(drug_t));
     cudaMemcpy(d_ic50, ic50, sizeof(drug_t), cudaMemcpyHostToDevice);
 
@@ -836,7 +901,8 @@ int main()
 
     double *dt_set;
     cudaMalloc(&dt_set, sample_size * sizeof(double) );
-    printf("core,dt_set,tcurr,states\n");
+    // printf("samples detected: %d\n",sample_size);
+    printf("core,dt_set,tcurr,states,rates\n");
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
