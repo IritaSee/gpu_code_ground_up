@@ -618,8 +618,7 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
   STATES[(offset * num_of_states) + jca] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + jca]) * exp(- dt / CONSTANTS[(offset * num_of_constants) + tjca]);
   STATES[(offset * num_of_states) + ffp] = ALGEBRAIC[(offset * num_of_algebraic) + fss] - (ALGEBRAIC[(offset * num_of_algebraic) + fss] - STATES[(offset * num_of_states) + ffp]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + tffp]);
   STATES[(offset * num_of_states) + fcafp] = ALGEBRAIC[(offset * num_of_algebraic) + fcass] - (ALGEBRAIC[(offset * num_of_algebraic) + fcass] - STATES[(offset * num_of_states) + fcafp]) * exp(-d / ALGEBRAIC[(offset * num_of_algebraic) + tfcafp]);
-  STATES[(offset * num_of_states) + nca] = ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] -
-      (ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] - STATES[(offset * num_of_states) + nca]) * exp(-ALGEBRAIC[(offset * num_of_algebraic) + km2n] * dt);
+  STATES[(offset * num_of_states) + nca] = ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] - (ALGEBRAIC[(offset * num_of_algebraic) + anca] * CONSTANTS[(offset * num_of_constants) + k2n] / ALGEBRAIC[(offset * num_of_algebraic) + km2n] - STATES[(offset * num_of_states) + nca]) * exp(-ALGEBRAIC[(offset * num_of_algebraic) + km2n] * dt);
   ////IKr
   STATES[(offset * num_of_states) + xrf] = ALGEBRAIC[(offset * num_of_algebraic) + xrss] - (ALGEBRAIC[(offset * num_of_algebraic) + xrss] - STATES[(offset * num_of_states) + xrf]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txrf]);
   STATES[(offset * num_of_states) + xrs] = ALGEBRAIC[(offset * num_of_algebraic) + xrss] - (ALGEBRAIC[(offset * num_of_algebraic) + xrss] - STATES[(offset * num_of_states) + xrs]) * exp(-dt / ALGEBRAIC[(offset * num_of_algebraic) + txrs]);
@@ -706,11 +705,11 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
 }
 
 // ------------------------------------------
-__device__ void applyDrugEffect(double conc, drug_t ic50, double epsilon, double *CONSTANTS)
+__device__ void applyDrugEffect(double conc, double *ic50, double epsilon, double *CONSTANTS)
 {
   int offset = threadIdx.x;
   int num_of_constants = 146;
-
+// cek lagi value ini, apakah dia bervariasi sesuai dengan samplenya? 
 CONSTANTS[GK1+(offset * num_of_constants)] = CONSTANTS[GK1+(offset * num_of_constants)] * ((ic50[2 + (offset*14)] > 10E-14 && ic50[3+ (offset*14)] > 10E-14) ? 1./(1.+pow(conc/ic50[2+ (offset*14)],ic50[3+ (offset*14)])) : 1.);
 CONSTANTS[GKr+(offset * num_of_constants)] = CONSTANTS[GKr+(offset * num_of_constants)] * ((ic50[12+ (offset*14)] > 10E-14 && ic50[13+ (offset*14)] > 10E-14) ? 1./(1.+pow(conc/ic50[12+ (offset*14)],ic50[13+ (offset*14)])) : 1.);
 CONSTANTS[GKs+(offset * num_of_constants)] = CONSTANTS[GKs+(offset * num_of_constants)] * ((ic50[4 + (offset*14)] > 10E-14 && ic50[5+ (offset*14)] > 10E-14) ? 1./(1.+pow(conc/ic50[4+ (offset*14)],ic50[5+ (offset*14)])) : 1.);
@@ -722,7 +721,7 @@ CONSTANTS[PCa+(offset * num_of_constants)] = CONSTANTS[PCa+(offset * num_of_cons
 
 
 char buffer[255];
-drug_t ic50;
+double ic50[14*3];
 // __shared__ drug_t *d_ic50;
 double *d_concs;
 
@@ -765,7 +764,7 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, double *dt_set){
+__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, double *dt_set){
     unsigned short sample_id;
     sample_id = threadIdx.x;
     int num_of_constants = 146;
@@ -796,7 +795,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
     const double bcl = 2000; // bcl is basic cycle length
     // const double bcl = 0.001;
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 5;
+    const unsigned short pace_max = 2;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -836,7 +835,7 @@ __global__ void do_drug_sim_analytical(drug_t d_ic50, double *d_CONSTANTS, doubl
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
 
-        printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
+        printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
     }
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -872,7 +871,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples2.csv");
+      "./IC50_samples3.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -881,7 +880,7 @@ int main()
 
     // double ALGEBRAIC[num_of_algebraic * sample_size];
     // double CONSTANTS[num_of_constants * sample_size];
-    // double RATES[num_of_rates * sample_size];
+    // double RATES[num_of_rates * sample_size]; 
     // double STATES[num_of_states * sample_size];
 
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
@@ -894,28 +893,48 @@ int main()
     // printf("cuda malloc status for rates: %d\n", cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double)));
     // printf("cuda malloc status for states: %d\n",cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double)));
 
-    cudaMalloc(&d_ic50, sizeof(drug_t));
-    cudaMemcpy(d_ic50, ic50, sizeof(drug_t), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_ic50, sample_size * 14 * sizeof(double));
+    cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
+
 
     tic();
 
     double *dt_set;
     cudaMalloc(&dt_set, sample_size * sizeof(double) );
+    // printf("algebraic: %zu, constants: %zu, rates: %zu, states: %zu, dt_set: %zu\n",sizeof(d_ALGEBRAIC), sizeof(d_CONSTANTS), sizeof(d_RATES), sizeof(d_STATES), sizeof(dt_set));
     // printf("samples detected: %d\n",sample_size);
-    printf("core,dt_set,tcurr,states,rates\n");
+    printf("core,dt_set,tcurr,states,rates,GKs\n");
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
+    
+    ////// copy the data back to CPU, and write them into file
+    // double STATES[num_of_states * sample_size];
+    
+    // cudaMemcpy(STATES, d_STATES, num_of_states * sample_size * sizeof(double), cudaMemcpyDeviceToHost);
+    // cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
+    
+    // FILE *writer;
+    // char buffer[255];
+
+    // snprintf(buffer, sizeof(buffer), "states_trial.plt");
+
+    // writer = fopen(buffer, "w");
+
+    // fprintf(writer, "core,dt_set,tcurr,states\n");
     // unsigned short sample_id;
+
     // for( sample_id = 0;
-    //     sample_id < sample_size;
+    //     sample_id < sample_size;  // ---> sample loop
     //     sample_id ++ )
     // { // begin sample loop
     //     printf("Sample_ID:%d \nData: ",
     //     sample_id );
         
     //     for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
-    //         printf("%lf ",ic50[z]);
+    //         fprintf(writer, "%d,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)]);
     //     }
     //     printf("\n");
 
