@@ -8,12 +8,22 @@
             "name": "CUDA C++: Launch",
             "type": "cuda-gdb",
             "request": "launch",
-            "program": "${workspaceFolder}/capturedata"
+            "program": "${workspaceFolder}/capturedata",
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "CUDA C++: Attach",
             "type": "cuda-gdb",
             "request": "attach"
+        },
+        {
+            "name": "CUDA: Debug with CUDA-GDB",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "gdb": "cuda-gdb",
+            "program": "${workspaceFolder}/capturedata",
+            "arguments": "",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

@@ -310,12 +310,16 @@ ALGEBRAIC[hssp + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp((STATES[V+
 ALGEBRAIC[thsp + (offset * num_of_algebraic)] =  3.00000*ALGEBRAIC[ths+ (offset * num_of_algebraic)];
 ALGEBRAIC[hp + (offset * num_of_algebraic) ] =  CONSTANTS[Ahf+ (offset * num_of_constants)]*STATES[hf+ (offset * num_of_states)]+ CONSTANTS[Ahs + (offset * num_of_constants)]*STATES[hsp + (offset * num_of_states)];
 ALGEBRAIC[tjp + (offset * num_of_algebraic)] =  1.46000*ALGEBRAIC[tj + (offset * num_of_algebraic)];
-ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ])/CONSTANTS[F + (offset * num_of_constants) ])*log(CONSTANTS[nao + (offset * num_of_constants)]/STATES[nai + (offset * num_of_constants)]);
+
+ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ])/CONSTANTS[F + (offset * num_of_constants) ])*log(CONSTANTS[nao + (offset * num_of_constants)]/STATES[nai + (offset * num_of_states)]);
+// printf("core %d, uraian ena: (( %lf * %lf ) / %lf ) * log( %lf / %lf );\n",offset, CONSTANTS[R + (offset * num_of_constants)],CONSTANTS[T + (offset * num_of_constants)], CONSTANTS[F + (offset * num_of_constants)], CONSTANTS[nao + (offset * num_of_constants)], STATES[nai + (offset * num_of_states)]);
+
 ALGEBRAIC[CaMKb + (offset * num_of_algebraic) ] = ( CONSTANTS[CaMKo + (offset * num_of_constants) ]*(1.00000 - STATES[CaMKt + (offset * num_of_states)]))/(1.00000+CONSTANTS[KmCaM + (offset * num_of_constants)]/STATES[cass + (offset * num_of_states)]);
 ALGEBRAIC[CaMKa + (offset * num_of_algebraic) ] = ALGEBRAIC[CaMKb + (offset * num_of_algebraic) ]+STATES[CaMKt + (offset * num_of_states)];
 ALGEBRAIC[fINap + (offset * num_of_algebraic) ] = 1.00000/(1.00000+CONSTANTS[KmCaMK + (offset * num_of_constants)]/ALGEBRAIC[CaMKa + (offset * num_of_algebraic)]);
 
 ALGEBRAIC[INa + (offset * num_of_algebraic) ] =  CONSTANTS[GNa + (offset * num_of_constants)]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*pow(STATES[m + (offset * num_of_states)], 3.00000)*( (1.00000 - ALGEBRAIC[fINap + (offset * num_of_algebraic)])*ALGEBRAIC[h + (offset * num_of_algebraic)]*STATES[j + (offset * num_of_states)]+ ALGEBRAIC[fINap + (offset * num_of_algebraic)]*ALGEBRAIC[hp+ (offset * num_of_algebraic)]*STATES[jp + (offset * num_of_states)]);
+//printf("core %d, uraian algebraic ina: %lf * (%lf - %lf) * pow(%lf, 3.00000)*( (1.00000 - %lf) * %lf * %lf + %lf * %lf * %lf)\n", offset, CONSTANTS[GNa + (offset * num_of_constants)], STATES[V + (offset * num_of_states)], ALGEBRAIC[ENa + (offset * num_of_algebraic)],STATES[m + (offset * num_of_states)], ALGEBRAIC[fINap + (offset * num_of_algebraic)], ALGEBRAIC[h + (offset * num_of_algebraic)], STATES[j + (offset * num_of_states)],  ALGEBRAIC[fINap + (offset * num_of_algebraic)], ALGEBRAIC[hp+ (offset * num_of_algebraic)], STATES[jp + (offset * num_of_states)]);
 
 ALGEBRAIC[mLss + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)]+42.8500)/5.26400));
 ALGEBRAIC[tmL + (offset * num_of_algebraic)] = ALGEBRAIC[tm + (offset * num_of_algebraic)];
@@ -325,7 +329,8 @@ ALGEBRAIC[fINaLp + (offset * num_of_algebraic)] = 1.00000/(1.00000+CONSTANTS[KmC
 
 ALGEBRAIC[INaL + (offset * num_of_algebraic) ] =  CONSTANTS[GNaL + (offset * num_of_constants) ]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*STATES[mL + (offset * num_of_states) ]*( (1.00000 - ALGEBRAIC[fINaLp + (offset * num_of_algebraic)])*STATES[hL + (offset * num_of_states) ]+ ALGEBRAIC[fINaLp + (offset * num_of_algebraic) ]*STATES[hLp + (offset * num_of_states) ]);
 
-ALGEBRAIC[INab + (offset * num_of_algebraic) ] = ( CONSTANTS[PNab + (offset * num_of_constants)]*ALGEBRAIC[vffrt + (offset * num_of_algebraic) ]*( STATES[nai]*exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - CONSTANTS[nao + (offset * num_of_constants)]))/(exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - 1.00000);
+ALGEBRAIC[INab + (offset * num_of_algebraic) ] = ( CONSTANTS[PNab + (offset * num_of_constants)]*ALGEBRAIC[vffrt + (offset * num_of_algebraic) ]*(STATES[nai + (offset * num_of_states)]*exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - CONSTANTS[nao + (offset * num_of_constants)]))/(exp(ALGEBRAIC[vfrt + (offset * num_of_algebraic)]) - 1.00000);
+// nge ubah states nya di sini tadi, yang gak ke offset
 ALGEBRAIC[ass + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)] - 14.3400)/14.8200));
 ALGEBRAIC[ta + (offset * num_of_algebraic) ] = 1.05150/(1.00000/( 1.20890*(1.00000+exp(- (STATES[V + (offset * num_of_states)] - 18.4099)/29.3814)))+3.50000/(1.00000+exp((STATES[V + (offset * num_of_states)]+100.000)/29.3814)));
 ALGEBRAIC[iss + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp((STATES[V+ (offset * num_of_states)]+43.9400)/5.71100));
@@ -765,7 +770,7 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, double *dt_set){
+__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC){
     unsigned short sample_id;
     sample_id = threadIdx.x;
     int num_of_constants = 146;
@@ -777,8 +782,9 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         // printf("Core %d ic50[%d]: %lf \n",sample_id, z, d_ic50[z]);
     // }
 
-    double tcurr = 0.0, dt = 0.005, tmax;
+    double tcurr = 0.000001, dt = 0.005, tmax;
     double max_time_step = 1.0, time_point = 25.0;
+    double dt_set;
 
     // files for storing results
     // time-series result
@@ -794,9 +800,9 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // double dtw = 2.0;
     // const char *drug_name = "bepridil";
     const double bcl = 2000; // bcl is basic cycle length
-    // const double bcl = 0.001;
+    
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 2;
+    const unsigned short pace_max = 1000;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -820,13 +826,16 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
 
     while (tcurr<tmax){
-        dt_set[sample_id] = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
+        dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
         computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
         // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
         //Compute the correct/accepted time step
-        if (floor((tcurr + dt_set[sample_id]) / bcl) == floor(tcurr / bcl)) {
+        //printf("core %d pas update dt nilai bandingan if nya: %lf dibanding %lf dan verdict %d\n", sample_id, floor((tcurr + dt_set) / bcl), floor(tcurr / bcl), (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl))  );
+        if (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl)) { // mungkin kena di sini, karena pas di debugger, tcurr itu nol, jadi ada div by zero
+        // tammbahan: setelah di cek ke codingan CPU, kedua belah if harusnya sama secara angka, gak cuman true terus di verdict
+        // sementara di codingan GPU, walaupun kanan nol terus, kiri satu terus, tetep di bilang true
           // printf("timestep not corrected in core %d \n", sample_id);
-          dt = dt_set[sample_id];
+          dt = dt_set;
         }
         else {
           dt = (floor(tcurr / bcl) + 1) * bcl - tcurr;
@@ -836,7 +845,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
 
-        printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
+        printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
     }
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
@@ -900,13 +909,13 @@ int main()
 
     tic();
 
-    double *dt_set;
-    cudaMalloc(&dt_set, sample_size * sizeof(double) );
+    // double *dt_set;
+    // cudaMalloc(&dt_set, sample_size * sizeof(double) );
     // printf("algebraic: %zu, constants: %zu, rates: %zu, states: %zu, dt_set: %zu\n",sizeof(d_ALGEBRAIC), sizeof(d_CONSTANTS), sizeof(d_RATES), sizeof(d_STATES), sizeof(dt_set));
     // printf("samples detected: %d\n",sample_size);
     printf("core,dt_set,tcurr,states,rates,GKs\n");
-    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
+    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
     
     ////// copy the data back to CPU, and write them into file ////////
