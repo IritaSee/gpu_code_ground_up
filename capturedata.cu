@@ -727,7 +727,7 @@ CONSTANTS[PCa+(offset * num_of_constants)] = CONSTANTS[PCa+(offset * num_of_cons
 
 
 char buffer[255];
-double ic50[14*10];
+double ic50[14*1];
 // __shared__ drug_t *d_ic50;
 double *d_concs;
 
@@ -885,7 +885,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples10.csv");
+      "./IC50_samples1.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -917,7 +917,7 @@ int main()
     // cudaMalloc(&dt_set, sample_size * sizeof(double) );
     // printf("algebraic: %zu, constants: %zu, rates: %zu, states: %zu, dt_set: %zu\n",sizeof(d_ALGEBRAIC), sizeof(d_CONSTANTS), sizeof(d_RATES), sizeof(d_STATES), sizeof(dt_set));
     // printf("samples detected: %d\n",sample_size);
-    //printf("core,dt_set,tcurr,states,rates,GKs\n");
+    printf("core,dt_set,tcurr,states,rates,GKs\n");
     do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
