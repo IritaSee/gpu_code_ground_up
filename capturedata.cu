@@ -300,15 +300,15 @@ ALGEBRAIC[vfrt + (offset * num_of_algebraic)] = ( STATES[V+ (offset * num_of_sta
 ALGEBRAIC[Istim+ (offset * num_of_algebraic)] = (TIME>=CONSTANTS[stim_start + (offset * num_of_constants)]&&TIME<=CONSTANTS[stim_end+ (offset * num_of_constants)]&&(TIME - CONSTANTS[stim_start + (offset * num_of_constants)]) -  floor((TIME - CONSTANTS[stim_start + (offset * num_of_constants)])/CONSTANTS[stim_period+ (offset * num_of_constants)])*CONSTANTS[stim_period + (offset * num_of_constants)]<=CONSTANTS[duration + (offset * num_of_constants)] ? CONSTANTS[amp + (offset * num_of_constants)] : 0.00000);
 ALGEBRAIC[mss + (offset * num_of_algebraic)] = 1.00000/ (1.00000+exp(- (STATES[V + (offset * num_of_states)]+CONSTANTS[mssV1+ (offset * num_of_constants)])/CONSTANTS[mssV2 + (offset * num_of_constants)]));
 ALGEBRAIC[tm + (offset * num_of_algebraic)] = 1.00000/( CONSTANTS[mtD1 + (offset * num_of_constants)]*exp((STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)])/CONSTANTS[mtV2 + (offset * num_of_constants)])+ CONSTANTS[mtD2 + (offset * num_of_constants) ]*exp(- (STATES[V + (offset * num_of_states) ]+CONSTANTS[mtV3 + (offset * num_of_constants)])/CONSTANTS[mtV4 + (offset * num_of_constants)]));
-ALGEBRAIC[hss + (offset * num_of_algebraic)] = 1.00000/(1.00000+exp((STATES[V + (offset * num_of_states) ]+CONSTANTS[hssV1 + (offset * num_of_constants) ])/CONSTANTS[hssV2 + (offset * num_of_constants) ]));
+ALGEBRAIC[hss + (offset * num_of_algebraic)] = 1.00000/(1.00000+exp((STATES[V + (offset * num_of_states)]+CONSTANTS[hssV1 + (offset * num_of_constants)])/CONSTANTS[hssV2 + (offset * num_of_constants)]));
 ALGEBRAIC[ths + (offset * num_of_algebraic) ] = 1.00000/( 0.00979400*exp(- (STATES[V + (offset * num_of_states) ]+17.9500)/28.0500)+ 0.334300*exp((STATES[V + (offset * num_of_states) ]+5.73000)/56.6600));
 ALGEBRAIC[thf + (offset * num_of_algebraic) ] = 1.00000/( 1.43200e-05*exp(- (STATES[V + (offset * num_of_states) ]+1.19600)/6.28500)+ 6.14900*exp((STATES[V + (offset * num_of_states) ]+0.509600)/20.2700));
-ALGEBRAIC[h + (offset * num_of_algebraic) ] =  CONSTANTS[Ahf + (offset * num_of_constants) ]*STATES[hf+ (offset * num_of_states) ]+ CONSTANTS[Ahs + (offset * num_of_constants)]*STATES[hs + (offset * num_of_states) ];
-ALGEBRAIC[jss + (offset * num_of_algebraic) ] = ALGEBRAIC[hss + (offset * num_of_algebraic) ];
-ALGEBRAIC[tj + (offset * num_of_algebraic) ] = 2.03800+1.00000/( 0.0213600*exp(- (STATES[V + (offset * num_of_states)]+100.600)/8.28100)+ 0.305200*exp((STATES[V + (offset * num_of_states) ]+0.994100)/38.4500));
+ALGEBRAIC[h + (offset * num_of_algebraic) ] =  CONSTANTS[Ahf + (offset * num_of_constants) ]*STATES[hf+ (offset * num_of_states) ]+ CONSTANTS[Ahs + (offset * num_of_constants)]*STATES[hs + (offset * num_of_states)];
+ALGEBRAIC[jss + (offset * num_of_algebraic) ] = ALGEBRAIC[hss + (offset * num_of_algebraic)];
+ALGEBRAIC[tj + (offset * num_of_algebraic) ] = 2.03800+1.00000/( 0.0213600*exp(- (STATES[V + (offset * num_of_states)]+100.600)/8.28100)+ 0.305200*exp((STATES[V + (offset * num_of_states)]+0.994100)/38.4500));
 ALGEBRAIC[hssp + (offset * num_of_algebraic) ] = 1.00000/(1.00000+exp((STATES[V+ (offset * num_of_states)]+89.1000)/6.08600));
 ALGEBRAIC[thsp + (offset * num_of_algebraic)] =  3.00000*ALGEBRAIC[ths+ (offset * num_of_algebraic)];
-ALGEBRAIC[hp + (offset * num_of_algebraic) ] =  CONSTANTS[Ahf+ (offset * num_of_constants)]*STATES[hf+ (offset * num_of_states)]+ CONSTANTS[Ahs + (offset * num_of_constants)]*STATES[hsp + (offset * num_of_states)];
+ALGEBRAIC[hp + (offset * num_of_algebraic)] =  CONSTANTS[Ahf+ (offset * num_of_constants)]*STATES[hf+ (offset * num_of_states)]+ CONSTANTS[Ahs + (offset * num_of_constants)]*STATES[hsp + (offset * num_of_states)];
 ALGEBRAIC[tjp + (offset * num_of_algebraic)] =  1.46000*ALGEBRAIC[tj + (offset * num_of_algebraic)];
 
 ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ])/CONSTANTS[F + (offset * num_of_constants) ])*log(CONSTANTS[nao + (offset * num_of_constants)]/STATES[nai + (offset * num_of_states)]);
@@ -727,7 +727,7 @@ CONSTANTS[PCa+(offset * num_of_constants)] = CONSTANTS[PCa+(offset * num_of_cons
 
 
 char buffer[255];
-double ic50[14*1];
+double ic50[14*2000];
 // __shared__ drug_t *d_ic50;
 double *d_concs;
 
@@ -954,5 +954,6 @@ int main()
 
     // } // end sample loop
     toc();
+    printf("Sample size: %d\n",sample_size);
     return 0;
 }
