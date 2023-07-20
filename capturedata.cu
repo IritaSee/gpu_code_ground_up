@@ -28,7 +28,8 @@ void toc(clock_t start)
 
 // -----------------------------------------
 __device__ void initConsts(double *CONSTANTS, double *STATES){
-int offset = threadIdx.x;
+// int offset = threadIdx.x;
+int offset = blockIdx.x * blockDim.x + threadIdx.x;
 int num_of_constants = 146;
 int num_of_states = 41;
 // printf("init const for core %d\n",offset);
@@ -238,7 +239,8 @@ __device__ double set_time_step(
 
     {
     double time_step = 0.005;
-    int offset = threadIdx.x;
+    // int offset = threadIdx.x;
+    int offset = blockIdx.x * blockDim.x + threadIdx.x;
     int num_of_constants = 146;
     int num_of_rates = 41; 
     // core selain 0 banyak masuk ke if ini, jadi time step nya stuck 
@@ -293,7 +295,8 @@ int num_of_constants = 146;
 int num_of_states = 41;
 int num_of_algebraic = 199;
 int num_of_rates = 41;
-int offset = threadIdx.x; 
+// int offset = threadIdx.x; 
+int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
 ALGEBRAIC[vffrt + (offset * num_of_algebraic)] = ( STATES[V + (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R+ (offset * num_of_constants)]*CONSTANTS[T+ (offset * num_of_constants)]);
 ALGEBRAIC[vfrt + (offset * num_of_algebraic)] = ( STATES[V+ (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R + (offset * num_of_constants)]*CONSTANTS[T + (offset * num_of_constants)]);
@@ -592,7 +595,8 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
   int num_of_states = 41;
   int num_of_algebraic = 199;
   int num_of_rates = 41;
-  int offset = threadIdx.x; 
+  // int offset = threadIdx.x;
+  int offset =blockIdx.x * blockDim.x + threadIdx.x; 
   // printf("current solveAnalytical offset: %d\n", offset);
 
   ////==============
@@ -713,7 +717,8 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
 // ------------------------------------------
 __device__ void applyDrugEffect(double conc, double *ic50, double epsilon, double *CONSTANTS)
 {
-  int offset = threadIdx.x;
+  // int offset = threadIdx.x;
+  int offset = blockIdx.x * blockDim.x + threadIdx.x;
   int num_of_constants = 146;
 // cek lagi value ini, apakah dia bervariasi sesuai dengan samplenya? 
 CONSTANTS[GK1+(offset * num_of_constants)] = CONSTANTS[GK1+(offset * num_of_constants)] * ((ic50[2 + (offset*14)] > 10E-14 && ic50[3+ (offset*14)] > 10E-14) ? 1./(1.+pow(conc/ic50[2+ (offset*14)],ic50[3+ (offset*14)])) : 1.);
@@ -772,7 +777,8 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
 
 __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC){
     unsigned short sample_id;
-    sample_id = threadIdx.x;
+    sample_id = blockIdx.x * blockDim.x + threadIdx.x;
+    //sample_id = threadIdx.x;
     int num_of_constants = 146;
     int num_of_states = 41;
     int num_of_rates = 41;
@@ -802,7 +808,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 1000;
+    const unsigned short pace_max = 10;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -885,7 +891,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples1.csv");
+      "./IC50_samples200.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -918,7 +924,8 @@ int main()
     // printf("algebraic: %zu, constants: %zu, rates: %zu, states: %zu, dt_set: %zu\n",sizeof(d_ALGEBRAIC), sizeof(d_CONSTANTS), sizeof(d_RATES), sizeof(d_STATES), sizeof(dt_set));
     // printf("samples detected: %d\n",sample_size);
     printf("core,dt_set,tcurr,states,rates,GKs\n");
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    // printf("%d, %d",sample_size/100,sample_size%100);
+    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
     
