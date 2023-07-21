@@ -808,7 +808,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 10;
+    const unsigned short pace_max = 1000;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -891,7 +891,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples200.csv");
+      "./IC50_samples1000.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
