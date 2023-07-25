@@ -8,6 +8,8 @@
 
 #include "enums/enum_mar_cell_MKII.cuh"
 
+#include "cufile.h"
+
 clock_t START_TIMER;
 
 clock_t tic();
@@ -25,6 +27,15 @@ void toc(clock_t start)
         << (clock() - start) / (double)CLOCKS_PER_SEC << "s"
         << std::endl;
 }
+// printf("core,dt_set,tcurr,states,rates,GKs\n");
+typedef struct{
+  int core;
+  float dt_set;
+  float tcurr;
+  float states;
+  float rates;
+  float GKs;
+} sim_result;
 
 // -----------------------------------------
 __device__ void initConsts(double *CONSTANTS, double *STATES){
@@ -775,7 +786,7 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC){
+__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, double *d_ALGEBRAIC, sim_result *result){
     unsigned short sample_id;
     sample_id = blockIdx.x * blockDim.x + threadIdx.x;
     //sample_id = threadIdx.x;
@@ -831,7 +842,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     int pace_count = 0;
   
     // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
-
+    int result_temp_idx = 0;
     while (tcurr<tmax){
         dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
         computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
@@ -854,7 +865,13 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr = tcurr + dt;
         if (pace_count > pace_max-3){
-        printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
+        //printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
+        result[result_temp_idx].core = sample_id;
+        result[result_temp_idx].dt_set = dt_set;
+        result[result_temp_idx].tcurr = tcurr;
+        result[result_temp_idx].states = d_STATES[V + (sample_id * num_of_states)];
+        result[result_temp_idx].rates = d_RATES[V + (sample_id * num_of_rates)];
+        result[result_temp_idx].GKs = d_CONSTANTS[GKs + (sample_id * num_of_constants)];
         }
     }
     // printf("\n");
@@ -891,7 +908,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples1000.csv");
+      "./IC50_samples100.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -902,6 +919,8 @@ int main()
     // double CONSTANTS[num_of_constants * sample_size];
     // double RATES[num_of_rates * sample_size]; 
     // double STATES[num_of_states * sample_size];
+    sim_result *gpuPointArray;
+    cudaMalloc((void**)&gpuPointArray, 1600000*sizeof(sim_result));
 
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
     cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double));
@@ -925,9 +944,51 @@ int main()
     // printf("samples detected: %d\n",sample_size);
     printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
-    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, gpuPointArray);
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
+
+  //       // opens a file to write
+  //       ret = open(TESTFILE, O_CREAT | O_RDWR | O_DIRECT, 0664);
+  //       if (ret < 0) {
+  //               std::cerr << "file open error:"
+	// 			<< cuFileGetErrorString(errno) << std::endl;
+  //               return -1;
+  //       }
+  //       fd = ret;
+
+  //       memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
+  //       cf_descr.handle.fd = fd;
+  //       cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
+  //       status = cuFileHandleRegister(&cf_handle, &cf_descr);
+  //       if (status.err != CU_FILE_SUCCESS) {
+  //               std::cerr << "file register error:"
+	// 			<< cuFileGetErrorString(status) << std::endl;
+  //               close(fd);
+  //               return -1;
+  //       }
+
+  //   // writes device memory contents to a file
+	//   // Not we skipped device memory registration using cuFileBufRegister
+	//   ret = cuFileWrite(cf_handle, devPtr, size, 0, 0);
+	//   if (ret < 0)
+	// 	  if (IS_CUFILE_ERR(ret))
+	// 		  std::cerr << "write failed : "
+	// 			  << cuFileGetErrorString(ret) << std::endl;
+	// 	  else
+	// 		  std::cerr << "write failed : "
+	// 			  << cuFileGetErrorString(errno) << std::endl;
+	//   else {
+	// 	  std::cout << "written bytes :" << ret << std::endl;
+	// 	  ret = 0;
+	//   }
+
+	// check_cudaruntimecall(cudaFree(devPtr));
+
+	// // close file
+  //       cuFileHandleDeregister(cf_handle);
+  //       close(fd);
+
     
     ////// copy the data back to CPU, and write them into file ////////
     // double STATES[num_of_states * sample_size];
