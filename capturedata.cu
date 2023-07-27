@@ -9,6 +9,8 @@
 #include "enums/enum_mar_cell_MKII.cuh"
 
 #include "cufile.h"
+#include <fcntl.h>
+#include <unistd.h>
 
 clock_t START_TIMER;
 
@@ -949,14 +951,15 @@ int main()
     // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
     cudaDeviceSynchronize();
 
-  //       // opens a file to write
-  //       ret = open(TESTFILE, O_CREAT | O_RDWR | O_DIRECT, 0664);
-  //       if (ret < 0) {
-  //               std::cerr << "file open error:"
-	// 			<< cuFileGetErrorString(errno) << std::endl;
-  //               return -1;
-  //       }
-  //       fd = ret;
+    // Create a Test file using standard Posix File IO calls
+    int fd;
+    // char TEST_READWRITEFILE;
+	  fd = open("testfile.csv", O_RDWR | O_CREAT, 0644);
+	  if (fd < 0) {
+		    std::cerr << "test file open error : " << "test.csv" << " "; 
+		    return -1;
+	}
+    close(fd);
 
   //       memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
   //       cf_descr.handle.fd = fd;
