@@ -11,6 +11,22 @@
 #include "cufile.h"
 #include <fcntl.h>
 #include <unistd.h>
+#include "cufile_sample_utils.h"
+#include <cuda.h>
+
+#ifdef __cplusplus 
+
+extern "C" {
+
+#endif
+
+	/* ... */
+
+#ifdef __cplusplus
+
+}
+
+#endif
 
 clock_t START_TIMER;
 
@@ -952,46 +968,54 @@ int main()
     cudaDeviceSynchronize();
 
     // Create a Test file using standard Posix File IO calls
-    int fd;
+    int fd = 0;
+    ssize_t ret = -1; 
+    CUfileHandle_t cf_handle;
+    void *devPtr = NULL;
+    CUfileDescr_t cf_descr;
+    CUfileError_t status;
+    int size = 1600000*sizeof(sim_result);
+
     // char TEST_READWRITEFILE;
-	  fd = open("testfile.csv", O_RDWR | O_CREAT, 0644);
+	  fd = open("testfile_new.csv", O_RDWR | O_CREAT | O_DIRECT, 0644);
 	  if (fd < 0) {
 		    std::cerr << "test file open error : " << "test.csv" << " "; 
 		    return -1;
 	}
-    close(fd);
+    
+    fd = ret;
 
-  //       memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
-  //       cf_descr.handle.fd = fd;
-  //       cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
-  //       status = cuFileHandleRegister(&cf_handle, &cf_descr);
-  //       if (status.err != CU_FILE_SUCCESS) {
-  //               std::cerr << "file register error:"
-	// 			<< cuFileGetErrorString(status) << std::endl;
-  //               close(fd);
-  //               return -1;
-  //       }
+        memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
+        cf_descr.handle.fd = fd;
+        cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
+        status = cuFileHandleRegister(&cf_handle, &cf_descr);
+        if (status.err != CU_FILE_SUCCESS) {
+                std::cerr << "file register error:"
+				<< cuFileGetErrorString(status) << std::endl;
+                close(fd);
+                return -1;
+        }
 
-  //   // writes device memory contents to a file
-	//   // Not we skipped device memory registration using cuFileBufRegister
-	//   ret = cuFileWrite(cf_handle, devPtr, size, 0, 0);
-	//   if (ret < 0)
-	// 	  if (IS_CUFILE_ERR(ret))
-	// 		  std::cerr << "write failed : "
-	// 			  << cuFileGetErrorString(ret) << std::endl;
-	// 	  else
-	// 		  std::cerr << "write failed : "
-	// 			  << cuFileGetErrorString(errno) << std::endl;
-	//   else {
-	// 	  std::cout << "written bytes :" << ret << std::endl;
-	// 	  ret = 0;
-	//   }
+    // writes device memory contents to a file
+	  // Not we skipped device memory registration using cuFileBufRegister
+	  ret = cuFileWrite(cf_handle, devPtr, size, 0, 0);
+	  if (ret < 0)
+		  if (IS_CUFILE_ERR(ret))
+			  std::cerr << "write failed : "
+				  << cuFileGetErrorString(ret) << std::endl;
+		  else
+			  std::cerr << "write failed : "
+				  << cuFileGetErrorString(errno) << std::endl;
+	  else {
+		  std::cout << "written bytes :" << ret << std::endl;
+		  ret = 0;
+	  }
 
 	// check_cudaruntimecall(cudaFree(devPtr));
 
-	// // close file
-  //       cuFileHandleDeregister(cf_handle);
-  //       close(fd);
+	// close file
+      cuFileHandleDeregister(cf_handle);
+      close(fd);
 
     
     ////// copy the data back to CPU, and write them into file ////////
