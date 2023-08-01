@@ -54,7 +54,7 @@ typedef struct{
   float rates;
   float GKs;
 } sim_result;
-
+__device__ int result_temp_idx = 0;
 // -----------------------------------------
 __device__ void initConsts(double *CONSTANTS, double *STATES){
 // int offset = threadIdx.x;
@@ -861,7 +861,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     int pace_count = 0;
   
     // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
-    int result_temp_idx = 0;
+    
     while (tcurr<tmax){
         dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
         computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
@@ -891,8 +891,13 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         result[result_temp_idx].states = d_STATES[V + (sample_id * num_of_states)];
         result[result_temp_idx].rates = d_RATES[V + (sample_id * num_of_rates)];
         result[result_temp_idx].GKs = d_CONSTANTS[GKs + (sample_id * num_of_constants)];
+        // printf("%d,%lf,%lf,%lf,%lf,%lf\n", result[result_temp_idx].core , result[result_temp_idx].dt_set, result[result_temp_idx].tcurr, result[result_temp_idx].states,result[result_temp_idx].rates, result[result_temp_idx].GKs);
+        
         }
+        printf("%d \n",result_temp_idx);
+        result_temp_idx++;
     }
+    
     // printf("\n");
     // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
     //       printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
@@ -938,7 +943,8 @@ int main()
     // double CONSTANTS[num_of_constants * sample_size];
     // double RATES[num_of_rates * sample_size]; 
     // double STATES[num_of_states * sample_size];
-    sim_result *gpuPointArray;
+    sim_result *gpuPointArray ;
+    // sim_result result[1600000];
     cudaMalloc((void**)&gpuPointArray, 1600000*sizeof(sim_result));
 
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
@@ -964,8 +970,19 @@ int main()
     printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
     do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, gpuPointArray);
-    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
+    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, gpuPointArray);
     cudaDeviceSynchronize();
+    // cudaMemcpy(result, gpuPointArray, 1600000 * sizeof(double), cudaMemcpyDeviceToHost);
+    
+    // printf("\n Result from one of the array: \n");
+    // printf("%d,%lf,%lf,%lf,%lf,%lf\n", 
+    //       result[3].core , 
+    //       result[3].dt_set, 
+    //       result[3].tcurr, 
+    //       result[3].states,
+    //       result[3].rates, 
+    //       result[3].GKs
+    //     );
 
     // Create a Test file using standard Posix File IO calls
     int fd = 0;
