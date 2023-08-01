@@ -1007,8 +1007,9 @@ int main()
         cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
         status = cuFileHandleRegister(&cf_handle, &cf_descr);
         if (status.err != CU_FILE_SUCCESS) {
-                std::cerr << "file register error:"
-				<< cuFileGetErrorString(status) << std::endl;
+                std::cerr << "file register error: "
+				        // << cuFileGetErrorString(status) 
+                << std::endl;
                 close(fd);
                 return -1;
         }
@@ -1018,11 +1019,13 @@ int main()
 	  ret = cuFileWrite(cf_handle, devPtr, size, 0, 0);
 	  if (ret < 0)
 		  if (IS_CUFILE_ERR(ret))
-			  std::cerr << "write failed : "
-				  << cuFileGetErrorString(ret) << std::endl;
+			  // std::cerr << "write failed : "
+				//   << cuFileGetErrorString(ret) << std::endl;
+        printf("write failed for some reason..\n");
 		  else
-			  std::cerr << "write failed : "
-				  << cuFileGetErrorString(errno) << std::endl;
+			  // std::cerr << "write failed : "
+				//   << cuFileGetErrorString(errno) << std::endl;
+        printf("write failed for some reason..\n");
 	  else {
 		  std::cout << "written bytes :" << ret << std::endl;
 		  ret = 0;
