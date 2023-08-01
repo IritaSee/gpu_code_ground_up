@@ -8,25 +8,25 @@
 
 #include "enums/enum_mar_cell_MKII.cuh"
 
-#include "cufile.h"
+#include <cufile.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "cufile_sample_utils.h"
 #include <cuda.h>
 
-#ifdef __cplusplus 
+// #ifdef __cplusplus 
 
-extern "C" {
+// extern "C" {
 
-#endif
+// #endif
 
-	/* ... */
+// 	/* ... */
 
-#ifdef __cplusplus
+// #ifdef __cplusplus
 
-}
+// }
 
-#endif
+// #endif
 
 clock_t START_TIMER;
 
