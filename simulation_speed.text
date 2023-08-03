@@ -35,3 +35,7 @@ setelah pake block:
 1000 pacing, 100 core * 10 block, 1000 sample, no drug effect: 2027.8 seconds
 1000 pacing, 100 core * 20 block, 2000 sample, no drug effect: 2337 seconds
 1000 pacing, 50 core * 40 block, 2000 sample, no drug effect: 2443.49 seconds
+
+Drug Effect:
+1000 pacing, 50 core * 40 block, 2000 sample, 33.0 drug effect: 48673.8 seconds (13 hours~)
+1000 pacing, 50 core * 20 block, 1000 sample, 33.0 drug effect: 48613.2 seconds (13 hours~)

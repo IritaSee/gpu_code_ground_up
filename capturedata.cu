@@ -8,25 +8,15 @@
 
 #include "enums/enum_mar_cell_MKII.cuh"
 
+
+// extern "C" {
 #include <cufile.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "cufile_sample_utils.h"
 #include <cuda.h>
+//}
 
-// #ifdef __cplusplus 
-
-// extern "C" {
-
-// #endif
-
-// 	/* ... */
-
-// #ifdef __cplusplus
-
-// }
-
-// #endif
 
 clock_t START_TIMER;
 
@@ -894,7 +884,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         // printf("%d,%lf,%lf,%lf,%lf,%lf\n", result[result_temp_idx].core , result[result_temp_idx].dt_set, result[result_temp_idx].tcurr, result[result_temp_idx].states,result[result_temp_idx].rates, result[result_temp_idx].GKs);
         
         }
-        printf("%d \n",result_temp_idx);
+        //printf("%d \n",result_temp_idx);
         result_temp_idx++;
     }
     
@@ -988,7 +978,7 @@ int main()
     int fd = 0;
     ssize_t ret = -1; 
     CUfileHandle_t cf_handle;
-    void *devPtr = NULL;
+    void *devPtr = NULL, *hostPtr = NULL;
     CUfileDescr_t cf_descr;
     CUfileError_t status;
     int size = 1600000*sizeof(sim_result);
@@ -996,20 +986,30 @@ int main()
     // char TEST_READWRITEFILE;
 	  fd = open("testfile_new.csv", O_RDWR | O_CREAT | O_DIRECT, 0644);
 	  if (fd < 0) {
-		    std::cerr << "test file open error : " << "test.csv" << " "; 
+		    std::cerr << "test file open error : " << "testfile_new.csv" << " "; 
 		    return -1;
 	}
     
     fd = ret;
+
+    hostPtr = malloc(size);
+	    if (!hostPtr) {
+		    std::cerr << "buffer allocation failure : "
+			  << std::strerror(errno) << std::endl;
+		    close(fd);
+		    return -1;
+	}
+
 
         memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
         cf_descr.handle.fd = fd;
         cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
         status = cuFileHandleRegister(&cf_handle, &cf_descr);
         if (status.err != CU_FILE_SUCCESS) {
-                std::cerr << "file register error: "
-				        // << cuFileGetErrorString(status) 
-                << std::endl;
+                // std::cerr << "file register error: "
+				        // // << cuFileGetErrorString(status) 
+                // << std::endl;
+                printf("File Register Error: with code %d\n",status);
                 close(fd);
                 return -1;
         }

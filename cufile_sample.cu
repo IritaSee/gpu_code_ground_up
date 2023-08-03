@@ -117,7 +117,8 @@ int main(int argc, char *argv[]) {
         status = cuFileHandleRegister(&cf_handle, &cf_descr);
         if (status.err != CU_FILE_SUCCESS) {
                 std::cerr << "file register error: "
-			<< cuFileGetErrorString(status) << std::endl;
+			//<< cuFileGetErrorString(status) 
+			<< std::endl;
                 close(fd);
                 return -1;
         }
@@ -133,10 +134,12 @@ int main(int argc, char *argv[]) {
 	if (ret < 0) {
 		if (IS_CUFILE_ERR(ret))
 			std::cerr << "read failed : "
-				<< cuFileGetErrorString(ret) << std::endl;
+				// << cuFileGetErrorString(ret) 
+				<< std::endl;
 		else
 			std::cerr << "read failed : "
-				<< cuFileGetErrorString(errno) << std::endl;
+				// << cuFileGetErrorString(errno) 
+				<< std::endl;
 		cuFileHandleDeregister(cf_handle);
 		close(fd);
 		check_cudaruntimecall(cudaFree(devPtr));
@@ -161,7 +164,8 @@ int main(int argc, char *argv[]) {
         status = cuFileHandleRegister(&cf_handle, &cf_descr);
         if (status.err != CU_FILE_SUCCESS) {
                 std::cerr << "file register error: "
-			<< cuFileGetErrorString(status) << std::endl;
+			// << cuFileGetErrorString(status) 
+			<< std::endl;
                 close(fd);
 		check_cudaruntimecall(cudaFree(devPtr));
                 return -1;
@@ -172,10 +176,12 @@ int main(int argc, char *argv[]) {
 	if (ret < 0) {
 		if (IS_CUFILE_ERR(ret))
 			std::cerr << "write failed : "
-				<< cuFileGetErrorString(ret) << std::endl;
+				// << cuFileGetErrorString(ret) 
+				<< std::endl;
 		else
 			std::cerr << "write failed : "
-				<< cuFileGetErrorString(errno) << std::endl;
+				// << cuFileGetErrorString(errno) 
+				<< std::endl;
 		goto out;
 	}
 

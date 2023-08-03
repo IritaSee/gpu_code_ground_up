@@ -891,7 +891,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples.csv");
+      "./IC50_samples100.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
