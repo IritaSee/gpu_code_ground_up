@@ -17,7 +17,7 @@
 #include <cuda.h>
 //}
 
-
+// CUDA_PROFILE_CSV = 1;
 clock_t START_TIMER;
 
 clock_t tic();
@@ -828,7 +828,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     
     // const double inet_vm_threshold = -88.0;
     // const unsigned short pace_max = 1000;
-    const unsigned short pace_max = 10;
+    const unsigned short pace_max = 6;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -975,68 +975,75 @@ int main()
     //     );
 
     // Create a Test file using standard Posix File IO calls
-    int fd = 0;
-    ssize_t ret = -1; 
-    CUfileHandle_t cf_handle;
-    void *devPtr = NULL, *hostPtr = NULL;
-    CUfileDescr_t cf_descr;
-    CUfileError_t status;
-    int size = 1600000*sizeof(sim_result);
+    int fd = -1;
 
-    // char TEST_READWRITEFILE;
-	  fd = open("testfile_new.csv", O_RDWR | O_CREAT | O_DIRECT, 0644);
-	  if (fd < 0) {
-		    std::cerr << "test file open error : " << "testfile_new.csv" << " "; 
-		    return -1;
-	}
-    
-    fd = ret;
+	  ssize_t ret = -1;
+	  void *devPtr = NULL;
+	  const size_t size = 1600000*sizeof(sim_result);
+	  CUfileError_t status;
+	  CUfileDescr_t cf_descr;
+	  CUfileHandle_t cf_handle;
+	  //const char *TESTFILE;
 
-    hostPtr = malloc(size);
-	    if (!hostPtr) {
-		    std::cerr << "buffer allocation failure : "
-			  << std::strerror(errno) << std::endl;
-		    close(fd);
-		    return -1;
-	}
+  	std::cout << "opening file " << "testfile_2.csv" << std::endl;
 
+        // opens a file to write
+        ret = open("testfile_2.csv", O_CREAT | O_RDWR | O_DIRECT, 0664);
+        if (ret < 0) {
+                std::cerr << "file open error:"
+				//      << cuFileGetErrorString(errno) 
+                << std::endl;
+                return -1;
+        }
+        fd = ret;
 
         memset((void *)&cf_descr, 0, sizeof(CUfileDescr_t));
         cf_descr.handle.fd = fd;
         cf_descr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
         status = cuFileHandleRegister(&cf_handle, &cf_descr);
         if (status.err != CU_FILE_SUCCESS) {
-                // std::cerr << "file register error: "
-				        // // << cuFileGetErrorString(status) 
-                // << std::endl;
-                printf("File Register Error: with code %d\n",status);
+                std::cerr << "file register error"
+				// << cuFileGetErrorString(status) 
+                << std::endl;
                 close(fd);
                 return -1;
         }
 
-    // writes device memory contents to a file
-	  // Not we skipped device memory registration using cuFileBufRegister
-	  ret = cuFileWrite(cf_handle, devPtr, size, 0, 0);
-	  if (ret < 0)
-		  if (IS_CUFILE_ERR(ret))
-			  // std::cerr << "write failed : "
-				//   << cuFileGetErrorString(ret) << std::endl;
-        printf("write failed for some reason..\n");
-		  else
-			  // std::cerr << "write failed : "
-				//   << cuFileGetErrorString(errno) << std::endl;
-        printf("write failed for some reason..\n");
-	  else {
-		  std::cout << "written bytes :" << ret << std::endl;
-		  ret = 0;
-	  }
+	  // check_cudaruntimecall(cudaGetDevice(&idx));
 
-	// check_cudaruntimecall(cudaFree(devPtr));
+	std::cout << "allocating device memory of size :" 
+			<< size << " gpu id: " << 0 << std::endl;
+
+	// allocates device memory
+	// check_cudaruntimecall(cudaMalloc(&devPtr, size));
+	// filler for device memory
+	// check_cudaruntimecall(cudaMemset(devPtr, 0xab, size));
+	// check_cudaruntimecall(cudaStreamSynchronize(0));
+  cudaStreamSynchronize(0);
+	// check_cudaruntimecall(cudaGetDevice(&idx));
+
+	std::cout << "writing from gpuid: " << 0 << std::endl;
+
+	// writes device memory contents to a file
+	// Not we skipped device memory registration using cuFileBufRegister
+	ret = cuFileWrite(cf_handle, gpuPointArray, size, 0, 0);
+	if (ret < 0)
+		if (IS_CUFILE_ERR(ret))
+			std::cerr << "write failed : "
+				<< cuFileGetErrorString(ret) << std::endl;
+		else
+			std::cerr << "write failed : "
+				<< cuFileGetErrorString(errno) << std::endl;
+	else {
+		std::cout << "written bytes :" << ret << std::endl;
+		ret = 0;
+	}
+
+	check_cudaruntimecall(cudaFree(devPtr));
 
 	// close file
-      cuFileHandleDeregister(cf_handle);
-      close(fd);
-
+        cuFileHandleDeregister(cf_handle);
+        close(fd);
     
     ////// copy the data back to CPU, and write them into file ////////
     // double STATES[num_of_states * sample_size];

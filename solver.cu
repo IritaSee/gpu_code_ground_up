@@ -891,7 +891,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples100.csv");
+      "./IC50_samples10.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     // if(ic50.size() == 0)
     //     printf("Something problem with the IC50 file!\n");
@@ -925,8 +925,8 @@ int main()
     // printf("samples detected: %d\n",sample_size);
     printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
-    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
-    // do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, dt_set);
+    //do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
     cudaDeviceSynchronize();
     
     ////// copy the data back to CPU, and write them into file ////////

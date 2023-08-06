@@ -28,3 +28,9 @@
  03-08-2023 16:13:15:724 [pid=1217964 tid=1217964] NOTICE  cufio-drv:720 running in compatible mode
  03-08-2023 16:13:15:931 [pid=1217964 tid=1217964] ERROR  cufio-fs:79 mount option not found in mount table data device: /dev/nvme0n1p5
  03-08-2023 16:13:16:103 [pid=1217964 tid=1217964] ERROR  0:106 cuDeviceGet failed with error 4
+ 03-08-2023 17:30:12:943 [pid=1226023 tid=1226023] NOTICE  cufio-drv:720 running in compatible mode
+ 03-08-2023 17:30:13:152 [pid=1226023 tid=1226023] ERROR  cufio-fs:79 mount option not found in mount table data device: /dev/nvme0n1p5
+ 03-08-2023 17:30:13:176 [pid=1226023 tid=1226023] ERROR  0:106 cuDeviceGet failed with error 4
+ 03-08-2023 18:02:33:649 [pid=1226243 tid=1226243] NOTICE  cufio-drv:720 running in compatible mode
+ 03-08-2023 18:02:33:857 [pid=1226243 tid=1226243] ERROR  cufio-fs:79 mount option not found in mount table data device: /dev/nvme0n1p5
+ 03-08-2023 18:02:33:881 [pid=1226243 tid=1226243] ERROR  0:106 cuDeviceGet failed with error 4
