@@ -988,7 +988,7 @@ int main()
   	std::cout << "opening file " << "testfile_2.csv" << std::endl;
 
         // opens a file to write
-        ret = open("testfile_2.csv", O_CREAT | O_RDWR | O_DIRECT, 0664);
+        ret = open("testfile_from_gpu.csv", O_CREAT | O_RDWR | O_DIRECT, 0664);
         if (ret < 0) {
                 std::cerr << "file open error:"
 				//      << cuFileGetErrorString(errno) 
