@@ -1,34 +1,23 @@
 #include <stdio.h>
+#include <stdlib.h>
 
-struct sim_result{
-  int core;
-  float dt_set;
-  float tcurr;
-  float states;
-  float rates;
-  float GKs;
-} ;
 
 int main() {
   FILE *fp;
-  struct sim_result result[100];
-  int i;
+  int i=0;
+  fp = fopen("test103", "rb");
+  char buffer[10];  
 
-  fp = fopen("testfile_2.dat", "rb");
-  if (fp == NULL) {
-    printf("Error opening file.\n");
-    return 1;
-  }
+unsigned short stringLength = 0;
+//fread(&stringLength, sizeof(unsigned short), 1, fp);
 
-  for (i = 0; i < 100; i++) {
-    fread(&result[i], sizeof(struct sim_result), 1, fp);
-  }
+//char *drumReadString = malloc(sizeof(char) * stringLength);
+fread(&buffer, 1, 10, fp);
+//int count = fread(drumReadString, sizeof(char), stringLength, fp);
 
-  fclose(fp);
-  printf("core,dt_set,tcurr,states,rates,GKs\n");
-  for (i = 0; i < 100; i++) {
-    printf("%d,%lf,%lf,%lf,%lf,%lf\n", result->core, result->dt_set, result->tcurr, result->states,result->rates, result->GKs);
-  }
+printf("%s\n", buffer);
+
+fclose(fp); 
 
   return 0;
 }
