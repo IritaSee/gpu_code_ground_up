@@ -809,16 +809,16 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    // const unsigned short pace_max = 1000;
-    const unsigned short pace_max = 6;
+    const unsigned short pace_max = 1000;
+    // const unsigned short pace_max = 6;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    // double conc = 33.0;
-    double conc = 0.0;
+    double conc = 33.0;
+    // double conc = 0.0;
 
 
     // printf("Core %d:\n",sample_id);
@@ -905,34 +905,35 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples10.csv");
+      "./IC50_samples100.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
-    // if(ic50.size() == 0)
-    //     printf("Something problem with the IC50 file!\n");
-    // else if(ic50.size() > 2000)
-    //     printf("Too much input! Maximum sample data is 2000!\n");
-
+    if(sample_size == 0)
+        printf("Something problem with the IC50 file!\n");
+    else if(sample_size > 2000)
+        printf("Too much input! Maximum sample data is 2000!\n");
+    printf("Sample size: %d\n",sample_size);
+   
     // double ALGEBRAIC[num_of_algebraic * sample_size];
     // double CONSTANTS[num_of_constants * sample_size];
     // double RATES[num_of_rates * sample_size]; 
     // double STATES[num_of_states * sample_size];
-
+    printf("preparing GPU memory space \n");
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
     cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double));
     cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double));
     cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double));
-    // prep for 1 cycle plus a bit (7000 * sample_size)
-    cudaMalloc(&time, num_of_states * sample_size * 7000 * sizeof(double)); 
-    cudaMalloc(&states, num_of_states * sample_size * 7000 * sizeof(double));
-    cudaMalloc(&ical, num_of_states * sample_size * 7000 * sizeof(double));
-    cudaMalloc(&inal, num_of_states * sample_size * 7000 * sizeof(double));
+    // prep for 1 cycle plus a bit (700 * sample_size)
+    cudaMalloc(&time, num_of_states * sample_size * 2100 * sizeof(double)); 
+    cudaMalloc(&states, num_of_states * sample_size * 2100 * sizeof(double));
+    cudaMalloc(&ical, num_of_states * sample_size * 2100 * sizeof(double));
+    cudaMalloc(&inal, num_of_states * sample_size * 2100 * sizeof(double));
     
 
     // printf("cuda malloc status for algebraic: %d\n", cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double))) ;
     // printf("cuda malloc status for constants: %d\n", cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double)));
     // printf("cuda malloc status for rates: %d\n", cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double)));
     // printf("cuda malloc status for states: %d\n",cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double)));
-
+    printf("Copying sample files to GPU memory space \n");
     cudaMalloc(&d_ic50, sample_size * 14 * sizeof(double));
     cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
 
@@ -945,24 +946,23 @@ int main()
     // printf("samples detected: %d\n",sample_size);
     // printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
-    // do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
-    do_drug_sim_analytical<<<1,sample_size>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
-    // do_drug_sim_analytical<<<sample_size/10,10>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
-    // do_drug_sim_analytical<<<sample_size,1>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
-                            //block, core
-    // do_drug_sim_analytical<<<sample_size/400,400>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC);
+    printf("doing simulation.... \n");
+    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
+                                      //block, core
     cudaDeviceSynchronize();
     
-    ////// copy the data back to CPU, and write them into file ////////
-    double h_states[7000 * sample_size];
-    double h_time[7000 * sample_size];
-    double h_ical[7000 * sample_size];
-    double h_inal[7000 * sample_size];
+    printf("copying the data back to the CPU \n");
 
-    cudaMemcpy(h_states, states, sample_size * 7000 * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_time, time, sample_size * 7000 * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_ical, ical, sample_size * 7000 * sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_inal, inal, sample_size * 7000 * sizeof(double), cudaMemcpyDeviceToHost);
+    ////// copy the data back to CPU, and write them into file ////////
+    double h_states[2100 * sample_size];
+    double h_time[2100 * sample_size];
+    double h_ical[2100 * sample_size];
+    double h_inal[2100 * sample_size];
+
+    cudaMemcpy(h_states, states, sample_size * 2100 * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_time, time, sample_size * 2100 * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_ical, ical, sample_size * 2100 * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_inal, inal, sample_size * 2100 * sizeof(double), cudaMemcpyDeviceToHost);
 
     FILE *writer;
     // sample loop
@@ -970,14 +970,14 @@ int main()
       // double result_buffer[2][7000];
       // result_buffer[0][...] is for the time, and result_buffer[1][...] is for the states,
       char sample_str[ENOUGH];
-      char filename[100] = "./result/state_sample";
+      char filename[100] = "./result/bepridil/state_sample";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
 
       writer = fopen(filename,"w");
       fprintf(writer, "time,state,ICaL,INaL\n"); 
-      for (int datapoint = 0; datapoint<7000; datapoint++){
+      for (int datapoint = 0; datapoint<2100; datapoint++){
         if (h_time[ sample_id + (datapoint * sample_size)] == 0.0) {continue;}
         fprintf(writer, "%lf,%lf,%lf,%lf\n",
         h_time[ sample_id + (datapoint * sample_size)], 
@@ -1012,6 +1012,6 @@ int main()
 
     // } // end sample loop
     toc();
-    printf("Sample size: %d\n",sample_size);
+    
     return 0;
 }
