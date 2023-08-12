@@ -817,7 +817,7 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    double conc = 33.0;
+    double conc = 99.0;
     // double conc = 0.0;
 
 
@@ -905,7 +905,7 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./IC50_samples100.csv");
+      "./drugs/chlorpromazine/IC50_samples100.csv");
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
         printf("Something problem with the IC50 file!\n");
@@ -947,7 +947,7 @@ int main()
     // printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
     printf("doing simulation.... \n");
-    do_drug_sim_analytical<<<sample_size/100,100>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
+    do_drug_sim_analytical<<<sample_size/2,2>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
                                       //block, core
     cudaDeviceSynchronize();
     
@@ -970,7 +970,7 @@ int main()
       // double result_buffer[2][7000];
       // result_buffer[0][...] is for the time, and result_buffer[1][...] is for the states,
       char sample_str[ENOUGH];
-      char filename[100] = "./result/bepridil/state_sample";
+      char filename[150] = "./result/chlorpromazine/state_sample";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
