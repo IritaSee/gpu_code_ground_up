@@ -1,0 +1,6 @@
+Sample size: 100
+preparing GPU memory space 
+Copying sample files to GPU memory space 
+doing simulation.... 
+copying the data back to the CPU 
+Elapsed time: 2097.91s
