@@ -905,7 +905,9 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      "./drugs/chlorpromazine/IC50_samples100.csv");
+      // "./drugs/chlorpromazine/IC50_samples100.csv"
+      "./IC50_samples100.csv"
+      );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
         printf("Something problem with the IC50 file!\n");
@@ -923,10 +925,10 @@ int main()
     cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double));
     cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double));
     // prep for 1 cycle plus a bit (700 * sample_size)
-    cudaMalloc(&time, num_of_states * sample_size * 2100 * sizeof(double)); 
-    cudaMalloc(&states, num_of_states * sample_size * 2100 * sizeof(double));
-    cudaMalloc(&ical, num_of_states * sample_size * 2100 * sizeof(double));
-    cudaMalloc(&inal, num_of_states * sample_size * 2100 * sizeof(double));
+    cudaMalloc(&time, sample_size * 2100 * sizeof(double)); 
+    cudaMalloc(&states, sample_size * 2100 * sizeof(double));
+    cudaMalloc(&ical, sample_size * 2100 * sizeof(double));
+    cudaMalloc(&inal, sample_size * 2100 * sizeof(double));
     
 
     // printf("cuda malloc status for algebraic: %d\n", cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double))) ;
@@ -947,7 +949,7 @@ int main()
     // printf("core,dt_set,tcurr,states,rates,GKs\n");
     // printf("%d, %d",sample_size/100,sample_size%100);
     printf("doing simulation.... \n");
-    do_drug_sim_analytical<<<sample_size/2,2>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
+    do_drug_sim_analytical<<<sample_size/25,25>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
                                       //block, core
     cudaDeviceSynchronize();
     
@@ -967,10 +969,9 @@ int main()
     FILE *writer;
     // sample loop
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
-      // double result_buffer[2][7000];
-      // result_buffer[0][...] is for the time, and result_buffer[1][...] is for the states,
+      
       char sample_str[ENOUGH];
-      char filename[150] = "./result/chlorpromazine/state_sample";
+      char filename[150] = "./result/bepridil_3/state_sample";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
