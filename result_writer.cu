@@ -9,7 +9,7 @@
 #include "enums/enum_mar_cell_MKII.cuh"
 
 #define ENOUGH ((CHAR_BIT * sizeof(int) - 1) / 3 + 2)
-unsigned int datapoint_size = 3000;
+unsigned int datapoint_size = 7000;
 
 clock_t START_TIMER;
 
@@ -244,6 +244,7 @@ __device__ double set_time_step(
     double time_step = 0.005;
     // int offset = threadIdx.x;
     int offset = blockIdx.x * blockDim.x + threadIdx.x;
+    // printf("current set_time_step offset: %d\n", offset);
     int num_of_constants = 146;
     int num_of_rates = 41; 
     // core selain 0 banyak masuk ke if ini, jadi time step nya stuck 
@@ -300,6 +301,7 @@ int num_of_algebraic = 199;
 int num_of_rates = 41;
 // int offset = threadIdx.x; 
 int offset = blockIdx.x * blockDim.x + threadIdx.x;
+// printf("current computeRates offset: %d\n", offset);
 
 ALGEBRAIC[vffrt + (offset * num_of_algebraic)] = ( STATES[V + (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R+ (offset * num_of_constants)]*CONSTANTS[T+ (offset * num_of_constants)]);
 ALGEBRAIC[vfrt + (offset * num_of_algebraic)] = ( STATES[V+ (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R + (offset * num_of_constants)]*CONSTANTS[T + (offset * num_of_constants)]);
@@ -907,7 +909,7 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples10.csv"
+      "./IC50_samples1.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
@@ -942,15 +944,12 @@ int main()
 
 
     tic();
-
-    // double *dt_set;
-    // cudaMalloc(&dt_set, sample_size * sizeof(double) );
-    // printf("algebraic: %zu, constants: %zu, rates: %zu, states: %zu, dt_set: %zu\n",sizeof(d_ALGEBRAIC), sizeof(d_CONSTANTS), sizeof(d_RATES), sizeof(d_STATES), sizeof(dt_set));
-    // printf("samples detected: %d\n",sample_size);
-    // printf("core,dt_set,tcurr,states,rates,GKs\n");
-    // printf("%d, %d",sample_size/100,sample_size%100);
-    printf("doing simulation.... \n");
-    do_drug_sim_analytical<<<10,1>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
+    printf("Timer started, doing simulation.... \n");
+    int thread = 1;
+    int block = sample_size/thread;
+    printf("Sample size: %d\n",sample_size);
+    printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n", block,thread);
+    do_drug_sim_analytical<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
                                       //block, core
     cudaDeviceSynchronize();
     
@@ -972,7 +971,7 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/1_block";
+      char filename[150] = "./result/paralel/sample1_core1_";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
