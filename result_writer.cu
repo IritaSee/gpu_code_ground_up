@@ -8,7 +8,9 @@
 
 #include "enums/enum_mar_cell_MKII.cuh"
 
+//define the size for temporary string that holds int as char
 #define ENOUGH ((CHAR_BIT * sizeof(int) - 1) / 3 + 2)
+//define how many datapoints per sample
 unsigned int datapoint_size = 7000;
 
 clock_t START_TIMER;
@@ -30,9 +32,10 @@ void toc(clock_t start)
 }
 
 // -----------------------------------------
-__device__ void initConsts(double *CONSTANTS, double *STATES){
+__device__ void initConsts(unsigned short offset, double *CONSTANTS, double *STATES){
 // int offset = threadIdx.x;
-int offset = blockIdx.x * blockDim.x + threadIdx.x;
+// int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
 int num_of_constants = 146;
 int num_of_states = 41;
 // printf("init const for core %d\n",offset);
@@ -234,6 +237,7 @@ STATES[cajsr+(offset * num_of_states)] = 1.2;
 }
 
 __device__ double set_time_step(
+    unsigned short offset, 
     double TIME,
     double time_point,
     double max_time_step,
@@ -243,7 +247,7 @@ __device__ double set_time_step(
     {
     double time_step = 0.005;
     // int offset = threadIdx.x;
-    int offset = blockIdx.x * blockDim.x + threadIdx.x;
+    // int offset = blockIdx.x * blockDim.x + threadIdx.x;
     // printf("current set_time_step offset: %d\n", offset);
     int num_of_constants = 146;
     int num_of_rates = 41; 
@@ -293,14 +297,14 @@ __device__ double set_time_step(
 
 
 
-__device__ void computeRates(double TIME, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
+__device__ void computeRates(unsigned short offset, double TIME, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
 {
 int num_of_constants = 146;
 int num_of_states = 41;
 int num_of_algebraic = 199;
 int num_of_rates = 41;
 // int offset = threadIdx.x; 
-int offset = blockIdx.x * blockDim.x + threadIdx.x;
+// int offset = blockIdx.x * blockDim.x + threadIdx.x;
 // printf("current computeRates offset: %d\n", offset);
 
 ALGEBRAIC[vffrt + (offset * num_of_algebraic)] = ( STATES[V + (offset * num_of_states)]*CONSTANTS[F+ (offset * num_of_constants)]*CONSTANTS[F+ (offset * num_of_constants)])/( CONSTANTS[R+ (offset * num_of_constants)]*CONSTANTS[T+ (offset * num_of_constants)]);
@@ -593,7 +597,7 @@ RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + 
 
 }
 
-__device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
+__device__ void solveAnalytical(unsigned short offset, double dt, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
 { 
 
   int num_of_constants = 146;
@@ -601,7 +605,7 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
   int num_of_algebraic = 199;
   int num_of_rates = 41;
   // int offset = threadIdx.x;
-  int offset =blockIdx.x * blockDim.x + threadIdx.x; 
+  // int offset =blockIdx.x * blockDim.x + threadIdx.x; 
   // printf("current solveAnalytical offset: %d\n", offset);
 
   ////==============
@@ -720,10 +724,10 @@ __device__ void solveAnalytical(double dt, double *CONSTANTS, double *RATES, dou
 }
 
 // ------------------------------------------
-__device__ void applyDrugEffect(double conc, double *ic50, double epsilon, double *CONSTANTS)
+__device__ void applyDrugEffect(unsigned short offset, double conc, double *ic50, double epsilon, double *CONSTANTS)
 {
   // int offset = threadIdx.x;
-  int offset = blockIdx.x * blockDim.x + threadIdx.x;
+  // int offset = blockIdx.x * blockDim.x + threadIdx.x;
   int num_of_constants = 146;
 // cek lagi value ini, apakah dia bervariasi sesuai dengan samplenya? 
 CONSTANTS[GK1+(offset * num_of_constants)] = CONSTANTS[GK1+(offset * num_of_constants)] * ((ic50[2 + (offset*14)] > 10E-14 && ic50[3+ (offset*14)] > 10E-14) ? 1./(1.+pow(conc/ic50[2+ (offset*14)],ic50[3+ (offset*14)])) : 1.);
@@ -780,19 +784,21 @@ int get_IC50_data_from_file(const char* file_name, double *ic50)
   return sample_size;
 }
 
-__global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, 
-                                       double *d_ALGEBRAIC, double *time, double *states,
-                                       double *ical, double *inal){
-    unsigned short sample_id, input_counter;
-    input_counter = 0;
-    sample_id = blockIdx.x * blockDim.x + threadIdx.x;
-  
+__device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, 
+                                       double *d_ALGEBRAIC, double *time, double *out_dt, double *states,
+                                       double *ical, double *inal, unsigned short sample_id, double *tcurr, 
+                                       double *dt, unsigned int sample_size){
+    
+    unsigned short input_counter = 0;
+
     int num_of_constants = 146;
     int num_of_states = 41;
     int num_of_algebraic = 199;
-    //int num_of_rates = 41;
+    // int num_of_rates = 41;
 
-    double tcurr = 0.000001, dt = 0.005, tmax;
+    tcurr[sample_id] = 0.000001;
+    dt[sample_id] = 0.005;
+    double tmax;
     double max_time_step = 1.0, time_point = 25.0;
     double dt_set;
 
@@ -825,9 +831,9 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
 
 
     // printf("Core %d:\n",sample_id);
-    initConsts(d_CONSTANTS, d_STATES);
+    initConsts(sample_id,d_CONSTANTS, d_STATES);
 
-    applyDrugEffect(conc,d_ic50,1E-14,d_CONSTANTS);
+    applyDrugEffect(sample_id,conc,d_ic50,1E-14,d_CONSTANTS);
 
     d_CONSTANTS[stim_period + (sample_id * num_of_constants)] = bcl;
 
@@ -838,54 +844,72 @@ __global__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
   
     // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
 
-    while (tcurr<tmax){
-        dt_set = set_time_step(tcurr, time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
-        computeRates(tcurr, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
+    while (tcurr[sample_id]<tmax){
+        dt_set = set_time_step(sample_id, tcurr[sample_id], time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
+        computeRates(sample_id, tcurr[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
         // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
         //Compute the correct/accepted time step
         //printf("core %d pas update dt nilai bandingan if nya: %lf dibanding %lf dan verdict %d\n", sample_id, floor((tcurr + dt_set) / bcl), floor(tcurr / bcl), (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl))  );
-        if (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl)) { // mungkin kena di sini, karena pas di debugger, tcurr itu nol, jadi ada div by zero
+        if (floor((tcurr[sample_id] + dt_set) / bcl) == floor(tcurr[sample_id] / bcl)) { // mungkin kena di sini, karena pas di debugger, tcurr itu nol, jadi ada div by zero
         // tammbahan: setelah di cek ke codingan CPU, kedua belah if harusnya sama secara angka, gak cuman true terus di verdict
         // sementara di codingan GPU, walaupun kanan nol terus, kiri satu terus, tetep di bilang true
           // printf("timestep not corrected in core %d \n", sample_id);
-          dt = dt_set;
+          dt[sample_id] = dt_set;
         }
         else {
-          dt = (floor(tcurr / bcl) + 1) * bcl - tcurr;
+          dt[sample_id] = (floor(tcurr[sample_id] / bcl) + 1) * bcl - tcurr[sample_id];
           pace_count++;
           // printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr);
           // printf("timestep corrected in core %d \n", sample_id);
         }
 
-        solveAnalytical(dt, d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
-        tcurr = tcurr + dt;
+        solveAnalytical(sample_id, dt[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
+        tcurr[sample_id] = tcurr[sample_id] + dt[sample_id];
+        //printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr[sample_id]);
+        // kalau kita pakai 2 sample, penambahan dt ini terjadi 2x, 
+        // begitu juga seterusnya, sehingga membuat data ke skip
+        // sudah coba si tcurr di regulasi di paralleliser, cuman penambahan masi terjadi 2x
+        // sudah coba regulasi dt di paralleliser, tapi hasil masih sama
+
+        // issue found: GPU writting issue -> semua udah ketulis dengan benar, paling gak via printf
+        // input counter di regulasi di luar
+
+        // koreksi, input counter jangan di regulasi di luar!
+        // SOLVED: salah offset saat penulisan, harusnya input counter ketambah sepanjang sample size
+
         if (pace_count > pace_max-2){
-        //printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
-        time[input_counter + sample_id] = tcurr;
+        // printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
+        // printf("writing for core number %d\n",sample_id);
+        // printf("tcurr: %lf\n", tcurr[sample_id]);
+        // printf("writing this at input counter %d\n",input_counter);
+        time[input_counter + sample_id] = tcurr[sample_id];
+        out_dt[input_counter + sample_id] = dt[sample_id];
         states[input_counter + sample_id] = d_STATES[V + (sample_id * num_of_states)];
         ical[input_counter + sample_id] = d_ALGEBRAIC[(sample_id * num_of_algebraic) + ICaL];
         inal[input_counter + sample_id] = d_ALGEBRAIC[INaL + (sample_id * num_of_algebraic)];
-        input_counter++;
+        input_counter = input_counter + sample_size;
+        //printf("counter: %d core: %d\n",input_counter,sample_id);
         }
     }
-    // printf("\n");
-    // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
-    //       printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
-    // }
-
-    
-
-
-    // for (int z=0+(sample_id*146);z<(sample_id*146)+146;z++){
-        // printf("Core %d CONSTANTS[%d]: %lf \n",sample_id, z, d_CONSTANTS[z]);
-    // }
-    //printf("\n");
-    // for (int z=0+(sample_id*41);z<(sample_id*41)+41;z++){
-        // printf("Core %d STATES[%d]: %lf \n",sample_id, z, d_STATES[z]);
-    // }
-
- 
+    __syncthreads();
 }
+
+
+__global__ void trigger_parallelisation(double *d_ic50, double *d_CONSTANTS, double *d_STATES, double *d_RATES, 
+                                       double *d_ALGEBRAIC, double *time, double *out_dt, double *states,
+                                       double *ical, double *inal, unsigned int sample_size){
+    unsigned short sample_id;
+    
+    sample_id = blockIdx.x * blockDim.x + threadIdx.x;
+    double time_for_each_sample[2000];
+    double dt_for_each_sample[2000];
+    
+    // printf("Calculating %d\n",sample_id);
+    do_drug_sim_analytical(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
+                          time, out_dt, states, ical, inal, sample_id, 
+                          time_for_each_sample, dt_for_each_sample, sample_size);
+    
+  }
 
 int main()
 {
@@ -896,6 +920,7 @@ int main()
     double *d_STATES;
 
     double *time;
+    double *dt;
     double *states;
     double *ical;
     double *inal;
@@ -909,7 +934,7 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples1.csv"
+      "./IC50_samples100.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
@@ -929,6 +954,7 @@ int main()
     cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double));
     // prep for 1 cycle plus a bit (700 * sample_size)
     cudaMalloc(&time, sample_size * datapoint_size * sizeof(double)); 
+    cudaMalloc(&dt, sample_size * datapoint_size * sizeof(double)); 
     cudaMalloc(&states, sample_size * datapoint_size * sizeof(double));
     cudaMalloc(&ical, sample_size * datapoint_size * sizeof(double));
     cudaMalloc(&inal, sample_size * datapoint_size * sizeof(double));
@@ -942,15 +968,24 @@ int main()
     cudaMalloc(&d_ic50, sample_size * 14 * sizeof(double));
     cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
 
+    // int threadsPerBlock = 1024;
+    // int numBlocks;
+
+    // // Get the maximum number of active blocks per multiprocessor
+    // cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocks, do_drug_sim_analytical, threadsPerBlock);
+
+    // // Calculate the total number of blocks
+    // int numTotalBlocks = numBlocks * cudaDeviceGetMultiprocessorCount();
 
     tic();
     printf("Timer started, doing simulation.... \n");
-    int thread = 1;
-    int block = sample_size/thread;
+    int thread = 20;
+    // int block = int(ceil(sample_size/thread));
+    int block = (sample_size + thread - 1) / thread;
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n", block,thread);
-    do_drug_sim_analytical<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, states, ical, inal);
-                                      //block, core
+    trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
+                                      //block per grid, threads per block
     cudaDeviceSynchronize();
     
     printf("copying the data back to the CPU \n");
@@ -958,11 +993,13 @@ int main()
     ////// copy the data back to CPU, and write them into file ////////
     double h_states[datapoint_size * sample_size];
     double h_time[datapoint_size * sample_size];
+    double h_dt[datapoint_size * sample_size];
     double h_ical[datapoint_size * sample_size];
     double h_inal[datapoint_size * sample_size];
 
     cudaMemcpy(h_states, states, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_time, time, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_dt, dt, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_ical, ical, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_inal, inal, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
 
@@ -971,17 +1008,18 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/sample1_core1_";
+      char filename[150] = "./result/paralel/stresstest/";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
 
       writer = fopen(filename,"w");
-      fprintf(writer, "time,state,ICaL,INaL\n"); 
+      fprintf(writer, "time,dt,state,ICaL,INaL\n"); 
       for (int datapoint = 0; datapoint<datapoint_size; datapoint++){
         if (h_time[ sample_id + (datapoint * sample_size)] == 0.0) {continue;}
-        fprintf(writer, "%lf,%lf,%lf,%lf\n",
-        h_time[ sample_id + (datapoint * sample_size)], 
+        fprintf(writer, "%lf,%lf,%lf,%lf,%lf\n",
+        h_time[ sample_id + (datapoint * sample_size)],
+        h_dt[ sample_id + (datapoint * sample_size)], 
         h_states[ sample_id + (datapoint * sample_size)], 
         h_ical[ sample_id + (datapoint * sample_size)], 
         h_inal[ sample_id + (datapoint * sample_size)]
