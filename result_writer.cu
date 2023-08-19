@@ -789,7 +789,7 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
                                        double *ical, double *inal, unsigned short sample_id, double *tcurr, 
                                        double *dt, unsigned int sample_size){
     
-    unsigned short input_counter = 0;
+    unsigned int input_counter = 0;
 
     int num_of_constants = 146;
     int num_of_states = 41;
@@ -878,20 +878,22 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         // SOLVED: salah offset saat penulisan, harusnya input counter ketambah sepanjang sample size
 
         if (pace_count > pace_max-2){
-        // printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
+        // printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr[sample_id], d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
         // printf("writing for core number %d\n",sample_id);
         // printf("tcurr: %lf\n", tcurr[sample_id]);
         // printf("writing this at input counter %d\n",input_counter);
         time[input_counter + sample_id] = tcurr[sample_id];
         out_dt[input_counter + sample_id] = dt[sample_id];
         states[input_counter + sample_id] = d_STATES[V + (sample_id * num_of_states)];
-        ical[input_counter + sample_id] = d_ALGEBRAIC[(sample_id * num_of_algebraic) + ICaL];
+        ical[input_counter + sample_id] = d_ALGEBRAIC[ICaL + (sample_id * num_of_algebraic)];
         inal[input_counter + sample_id] = d_ALGEBRAIC[INaL + (sample_id * num_of_algebraic)];
         input_counter = input_counter + sample_size;
         //printf("counter: %d core: %d\n",input_counter,sample_id);
         }
     }
-    __syncthreads();
+    // __syncthreads();
+    //avoid race condition with this? 
+    //But the waiting become too long for 2< samples
 }
 
 
@@ -908,6 +910,8 @@ __global__ void trigger_parallelisation(double *d_ic50, double *d_CONSTANTS, dou
     do_drug_sim_analytical(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
                           time, out_dt, states, ical, inal, sample_id, 
                           time_for_each_sample, dt_for_each_sample, sample_size);
+                          // __syncthreads();
+    // printf("Calculation for core %d done\n",sample_id);
     
   }
 
@@ -934,7 +938,7 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples100.csv"
+      "./IC50_samples20.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
@@ -980,8 +984,8 @@ int main()
     tic();
     printf("Timer started, doing simulation.... \n");
     int thread = 20;
-    // int block = int(ceil(sample_size/thread));
-    int block = (sample_size + thread - 1) / thread;
+    int block = int(ceil(sample_size/thread));
+    // int block = (sample_size + thread - 1) / thread;
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n", block,thread);
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
@@ -1004,11 +1008,15 @@ int main()
     cudaMemcpy(h_inal, inal, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
 
     FILE *writer;
+
+    // time[input_counter + sample_id]
+    // input_counter = input_counter + sample_size;
+    printf("writing to file... \n");
     // sample loop
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/stresstest/";
+      char filename[150] = "./result/paralel/stresstest/20_";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
@@ -1016,7 +1024,7 @@ int main()
       writer = fopen(filename,"w");
       fprintf(writer, "time,dt,state,ICaL,INaL\n"); 
       for (int datapoint = 0; datapoint<datapoint_size; datapoint++){
-        if (h_time[ sample_id + (datapoint * sample_size)] == 0.0) {continue;}
+       // if (h_time[ sample_id + (datapoint * sample_size)] == 0.0) {continue;}
         fprintf(writer, "%lf,%lf,%lf,%lf,%lf\n",
         h_time[ sample_id + (datapoint * sample_size)],
         h_dt[ sample_id + (datapoint * sample_size)], 
