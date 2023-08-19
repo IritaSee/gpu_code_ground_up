@@ -818,16 +818,16 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    // const unsigned short pace_max = 1000;
-    const unsigned short pace_max = 6;
+    const unsigned short pace_max = 1000;
+    // const unsigned short pace_max = 6;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    double conc = 99.0;
-    // double conc = 0.0;
+    // double conc = 99.0;
+    double conc = 0.0;
 
 
     // printf("Core %d:\n",sample_id);
@@ -938,7 +938,7 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples20.csv"
+      "./IC50_samples.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
@@ -983,24 +983,45 @@ int main()
 
     tic();
     printf("Timer started, doing simulation.... \n");
-    int thread = 20;
+    int thread = 1;
     int block = int(ceil(sample_size/thread));
     // int block = (sample_size + thread - 1) / thread;
+
     printf("Sample size: %d\n",sample_size);
-    printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n", block,thread);
+    printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
                                       //block per grid, threads per block
     cudaDeviceSynchronize();
     
-    printf("copying the data back to the CPU \n");
+    // printf("allocating memory for computation result in the CPU \n");
+   
+    // double h_states[datapoint_size * sample_size];
+    // printf("...allocated for STATES, \n");
+    // double h_time[datapoint_size * sample_size];
+    // printf("...allocated for time, \n");
+    // double h_dt[datapoint_size * sample_size];
+    // printf("...allocated for dt, \n");
+    // double h_ical[datapoint_size * sample_size];
+    // printf("...allocated for ICaL, \n");
+    // double h_inal[datapoint_size * sample_size];
+    // printf("...allocating for INaL, all set!\n");
+
+    printf("allocating memory for computation result in the CPU, malloc style \n");
+    double *h_states,*h_time,*h_dt,*h_ical,*h_inal;
+
+    h_states = (double *)malloc(datapoint_size * sample_size * sizeof(double));
+    printf("...allocated for STATES, \n");
+    h_time = (double *)malloc(datapoint_size * sample_size * sizeof(double));
+    printf("...allocated for time, \n");
+    h_dt = (double *)malloc(datapoint_size * sample_size * sizeof(double));
+    printf("...allocated for dt, \n");
+    h_ical= (double *)malloc(datapoint_size * sample_size * sizeof(double));
+    printf("...allocated for ICaL, \n");
+    h_inal = (double *)malloc(datapoint_size * sample_size * sizeof(double));
+    printf("...allocating for INaL, all set!\n");
 
     ////// copy the data back to CPU, and write them into file ////////
-    double h_states[datapoint_size * sample_size];
-    double h_time[datapoint_size * sample_size];
-    double h_dt[datapoint_size * sample_size];
-    double h_ical[datapoint_size * sample_size];
-    double h_inal[datapoint_size * sample_size];
-
+    printf("copying the data back to the CPU \n");
     cudaMemcpy(h_states, states, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_time, time, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_dt, dt, sample_size * datapoint_size * sizeof(double), cudaMemcpyDeviceToHost);
@@ -1016,7 +1037,7 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/stresstest/20_";
+      char filename[150] = "./result/paralel/stresstest/realdeal/";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
@@ -1035,29 +1056,6 @@ int main()
       }
       fclose(writer);
     }
-    
-    // char buffer[255];
-
-    // snprintf(buffer, sizeof(buffer), "states_trial.plt");
-
-    // writer = fopen(buffer, "w");
-
-    // fprintf(writer, "core,dt_set,tcurr,states\n");
-    // unsigned short sample_id;
-
-    // for( sample_id = 0;
-    //     sample_id < sample_size;  // ---> sample loop
-    //     sample_id ++ )
-    // { // begin sample loop
-    //     printf("Sample_ID:%d \nData: ",
-    //     sample_id );
-        
-    //     for (int z=0+(sample_id*14);z<(sample_id*14)+14;z++){
-    //         fprintf(writer, "%d,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)]);
-    //     }
-    //     printf("\n");
-
-    // } // end sample loop
     toc();
     
     return 0;
