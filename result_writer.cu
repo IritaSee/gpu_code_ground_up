@@ -983,7 +983,7 @@ int main()
 
     tic();
     printf("Timer started, doing simulation.... \n");
-    int thread = 1;
+    int thread = 400;
     int block = int(ceil(sample_size/thread));
     // int block = (sample_size + thread - 1) / thread;
 

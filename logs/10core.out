@@ -1,0 +1,21 @@
+Sample size: 2000
+preparing GPU memory space 
+Copying sample files to GPU memory space 
+Timer started, doing simulation.... 
+Sample size: 2000
+
+   Configuration: 
+ block  ||  thread
+-------------------
+   200    ||    10
+
+
+allocating memory for computation result in the CPU, malloc style 
+...allocated for STATES, 
+...allocated for time, 
+...allocated for dt, 
+...allocated for ICaL, 
+...allocating for INaL, all set!
+copying the data back to the CPU 
+writing to file... 
+Elapsed time: 2707.48s

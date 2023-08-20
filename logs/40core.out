@@ -7,7 +7,7 @@ Sample size: 2000
    Configuration: 
  block  ||  thread
 -------------------
-   5    ||    400
+   50    ||    40
 
 
 allocating memory for computation result in the CPU, malloc style 
@@ -18,4 +18,4 @@ allocating memory for computation result in the CPU, malloc style
 ...allocating for INaL, all set!
 copying the data back to the CPU 
 writing to file... 
-Elapsed time: 5817.26s
+Elapsed time: 2204.73s
