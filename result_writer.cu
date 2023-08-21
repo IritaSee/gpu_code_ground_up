@@ -818,8 +818,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
+    // const unsigned short pace_max = 1000;
     const unsigned short pace_max = 1000;
-    // const unsigned short pace_max = 6;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -983,7 +983,7 @@ int main()
 
     tic();
     printf("Timer started, doing simulation.... \n");
-    int thread = 400;
+    int thread = 20;
     int block = int(ceil(sample_size/thread));
     // int block = (sample_size + thread - 1) / thread;
 
@@ -1037,7 +1037,7 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/stresstest/realdeal/";
+      char filename[150] = "./result/paralel/stresstest/bepridil/";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
