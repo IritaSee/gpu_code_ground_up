@@ -741,7 +741,7 @@ CONSTANTS[PCa+(offset * num_of_constants)] = CONSTANTS[PCa+(offset * num_of_cons
 
 
 char buffer[255];
-double ic50[14*2000];
+double ic50[14*56000];
 // __shared__ drug_t *d_ic50;
 double *d_concs;
 
@@ -790,6 +790,7 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
                                        double *dt, unsigned int sample_size){
     
     unsigned int input_counter = 0;
+    unsigned short cnt;
 
     int num_of_constants = 146;
     int num_of_states = 41;
@@ -826,8 +827,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    double conc = 99.0;
-    // double conc = 0.0;
+    // double conc = 99.0;
+    double conc = 0.0;
 
 
     // printf("Core %d:\n",sample_id);
@@ -862,7 +863,20 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
           // printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr);
           // printf("timestep corrected in core %d \n", sample_id);
         }
-
+        if(sample_id==0 && pace_count%10==0 && pace_count>10){
+        // printf("Calculating... watching core 0: %.2lf %% done\n",(tcurr[sample_id]/tmax)*100.0);
+        printf("[");
+        for (cnt=0; cnt<pace_count/10;cnt++){
+          printf("=");
+        }
+        for (cnt=pace_count/10; cnt<pace_max/10;cnt++){
+          printf("_");
+        }
+        printf("] %.2lf %% \n",(tcurr[sample_id]/tmax)*100.0);
+        //mvaddch(0,pace_count,'=');
+        //refresh();
+        //system("clear");
+        }
         solveAnalytical(sample_id, dt[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr[sample_id] = tcurr[sample_id] + dt[sample_id];
         //printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr[sample_id]);
@@ -903,8 +917,8 @@ __global__ void trigger_parallelisation(double *d_ic50, double *d_CONSTANTS, dou
     unsigned short sample_id;
     
     sample_id = blockIdx.x * blockDim.x + threadIdx.x;
-    double time_for_each_sample[2000];
-    double dt_for_each_sample[2000];
+    double time_for_each_sample[56000];
+    double dt_for_each_sample[56000];
     
     // printf("Calculating %d\n",sample_id);
     do_drug_sim_analytical(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
@@ -938,13 +952,13 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples.csv"
+      "./IC50_samples56k.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
         printf("Something problem with the IC50 file!\n");
-    else if(sample_size > 2000)
-        printf("Too much input! Maximum sample data is 2000!\n");
+    // else if(sample_size > 2000)
+    //     printf("Too much input! Maximum sample data is 2000!\n");
     printf("Sample size: %d\n",sample_size);
    
     // double ALGEBRAIC[num_of_algebraic * sample_size];
@@ -989,8 +1003,10 @@ int main()
 
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
+    // initscr();
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
                                       //block per grid, threads per block
+    // endwin();
     cudaDeviceSynchronize();
     
     // printf("allocating memory for computation result in the CPU \n");
@@ -1037,7 +1053,7 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/stresstest/bepridil/";
+      char filename[150] = "./result/paralel/drugeffect/";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
