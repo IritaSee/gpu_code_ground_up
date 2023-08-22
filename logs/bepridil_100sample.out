@@ -1,13 +1,13 @@
-Sample size: 2000
+Sample size: 100
 preparing GPU memory space 
 Copying sample files to GPU memory space 
 Timer started, doing simulation.... 
-Sample size: 2000
+Sample size: 100
 
    Configuration: 
  block  ||  thread
 -------------------
-   100    ||    20
+   5    ||    20
 
 
 allocating memory for computation result in the CPU, malloc style 
@@ -18,4 +18,4 @@ allocating memory for computation result in the CPU, malloc style
 ...allocating for INaL, all set!
 copying the data back to the CPU 
 writing to file... 
-Elapsed time: 19572s
+Elapsed time: 15604.3s
