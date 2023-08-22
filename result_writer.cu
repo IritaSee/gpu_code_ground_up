@@ -863,7 +863,7 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
           // printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr);
           // printf("timestep corrected in core %d \n", sample_id);
         }
-        if(sample_id==0 && pace_count%10==0 && pace_count>10){
+        if(sample_id==0 && pace_count%100==0 && pace_count>99){
         // printf("Calculating... watching core 0: %.2lf %% done\n",(tcurr[sample_id]/tmax)*100.0);
         printf("[");
         for (cnt=0; cnt<pace_count/10;cnt++){
@@ -1004,6 +1004,7 @@ int main()
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
     // initscr();
+    printf("[____________________________________________________________________________________________________]0.00 %% \n");
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
                                       //block per grid, threads per block
     // endwin();
