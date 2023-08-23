@@ -803,6 +803,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     double max_time_step = 1.0, time_point = 25.0;
     double dt_set;
 
+    bool writen = false;
+
     // files for storing results
     // time-series result
     // FILE *fp_vm, *fp_inet, *fp_gate;
@@ -819,8 +821,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    // const unsigned short pace_max = 1000;
     const unsigned short pace_max = 1000;
+    // const unsigned short pace_max = 10;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -860,10 +862,11 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         else {
           dt[sample_id] = (floor(tcurr[sample_id] / bcl) + 1) * bcl - tcurr[sample_id];
           pace_count++;
+          writen = false;
           // printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr);
           // printf("timestep corrected in core %d \n", sample_id);
         }
-        if(sample_id==0 && pace_count%100==0 && pace_count>99){
+        if(sample_id==0 && pace_count%10==0 && pace_count>99 && !writen){
         // printf("Calculating... watching core 0: %.2lf %% done\n",(tcurr[sample_id]/tmax)*100.0);
         printf("[");
         for (cnt=0; cnt<pace_count/10;cnt++){
@@ -876,6 +879,7 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         //mvaddch(0,pace_count,'=');
         //refresh();
         //system("clear");
+        writen = true;
         }
         solveAnalytical(sample_id, dt[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr[sample_id] = tcurr[sample_id] + dt[sample_id];
@@ -952,7 +956,7 @@ int main()
 
     snprintf(buffer, sizeof(buffer),
       // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples56k.csv"
+      "./IC50_samples.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
@@ -1004,7 +1008,7 @@ int main()
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
     // initscr();
-    printf("[____________________________________________________________________________________________________]0.00 %% \n");
+    printf("[____________________________________________________________________________________________________]  0.00 %% \n");
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
                                       //block per grid, threads per block
     // endwin();
