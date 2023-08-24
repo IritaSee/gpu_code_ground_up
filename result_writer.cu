@@ -821,7 +821,7 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 1000;
+    const unsigned short pace_max = 300;
     // const unsigned short pace_max = 10;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
@@ -829,8 +829,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    // double conc = 99.0;
-    double conc = 0.0;
+    double conc = 99.0; //mmol
+    // double conc = 0.0;
 
 
     // printf("Core %d:\n",sample_id);
@@ -1001,14 +1001,14 @@ int main()
 
     tic();
     printf("Timer started, doing simulation.... \n");
-    int thread = 20;
+    int thread = 100;
     int block = int(ceil(sample_size/thread));
     // int block = (sample_size + thread - 1) / thread;
 
     printf("Sample size: %d\n",sample_size);
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
     // initscr();
-    printf("[____________________________________________________________________________________________________]  0.00 %% \n");
+    // printf("[____________________________________________________________________________________________________]  0.00 %% \n");
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
                                       //block per grid, threads per block
     // endwin();
@@ -1058,7 +1058,7 @@ int main()
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
       
       char sample_str[ENOUGH];
-      char filename[150] = "./result/paralel/drugeffect/";
+      char filename[150] = "./result/drugged/";
       sprintf(sample_str, "%d", sample_id);
       strcat(filename,sample_str);
       strcat(filename,".csv");
