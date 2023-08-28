@@ -38,7 +38,6 @@ __device__ void initConsts(unsigned short offset, double *CONSTANTS, double *STA
 
 int num_of_constants = 146;
 int num_of_states = 41;
-// printf("init const for core %d\n",offset);
 CONSTANTS[celltype+(offset * num_of_constants)] = 0;
 CONSTANTS[R+(offset * num_of_constants)] = 8314;
 CONSTANTS[T+(offset * num_of_constants)] = 310;
@@ -228,12 +227,6 @@ STATES[cansr+(offset * num_of_states)] = 1.2;
 STATES[Jrelnp+(offset * num_of_states)] = 0;
 STATES[Jrelp+(offset * num_of_states)] = 0;
 STATES[cajsr+(offset * num_of_states)] = 1.2;
-// for (int zz = 0; zz < num_of_constants; zz++){
-//   printf("core %d, constants[%d] = %lf\n", offset, zz, CONSTANTS[zz]);
-// }
-// for (int aa = 0; aa < num_of_states; aa++){
-//   printf("core %d, states[%d] = %lf\n", offset, aa, STATES[aa]);
-// }
 }
 
 __device__ double set_time_step(
@@ -248,49 +241,28 @@ __device__ double set_time_step(
     double time_step = 0.005;
     // int offset = threadIdx.x;
     // int offset = blockIdx.x * blockDim.x + threadIdx.x;
-    // printf("current set_time_step offset: %d\n", offset);
     int num_of_constants = 146;
     int num_of_rates = 41; 
-    // core selain 0 banyak masuk ke if ini, jadi time step nya stuck 
-    // di semua core pun, kalo semisal tcurr (TIME) udah di atas time_point (25.0), harusnya logika kedua bernilai false biar ada update time_step
-    // core selain 0 sepertinya selalu true buat logika kedua.
-    // koreksi, gak ternyata, ternyata core2 lain gak masuk ke if ini, udah masuk else, 
     if (TIME <= time_point || (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ) <= time_point) {
-        // printf("TIME <= time_point ms for core %d \n", offset);
-        //printf(" untuk core %d masuk if pertama dengan nilai perhitungan sisi kedua: %lf\n", offset, (TIME - floor(TIME / CONSTANTS[stim_period + (offset * num_of_constants)]) * CONSTANTS[stim_period + (offset * num_of_constants)] ));
-          // printf("dV = %lf, time_step = %lf\n",RATES[V] * time_step, time_step);
-        return time_step;
-      
+        return time_step;   
     }
-    else {
-          //printf("core %d gak masuk if pertama, jadi masuk else, dengan nilai kondisional %lf \n", offset, std::abs(RATES[V + (offset * num_of_rates)] * time_step));
-          //printf("nilai rates di core %d: %lf\n",offset, RATES[V + (offset * num_of_rates)]);
-        //printf("TIME > time_point ms\n");
+    else {  
         if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) <= 0.2) {//Slow changes in V
-        // hanya core 0 yang berhasil masuk ke if ini
-            // printf("dV/dt <= 0.2 for core %d\n", offset);
             time_step = std::abs(0.8 / RATES[V + (offset * num_of_rates)] );
-            //printf("untuk core %d masuk if kedua dengan nilai time step %lf\n", offset, time_step);
-            //Make sure time_step is between 0.005 and max_time_step
             if (time_step < 0.005) {
                 time_step = 0.005;
             }
             else if (time_step > max_time_step) {
                 time_step = max_time_step;
             }
-            // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
         }
         else if (std::abs(RATES[V + (offset * num_of_rates)] * time_step) >= 0.8) {//Fast changes in V
-        // core lain gak pernah masuk sini! Bahkan gak pernah ada yang masuk ke sini, 
-            //printf("dV/dt >= 0.8\n");
             time_step = std::abs(0.2 / RATES[V+ (offset * num_of_rates)]);
-            //printf("untuk core %d masuk else dari if kedua dengan nilai time step %lf\n", offset, time_step);
             while (std::abs(RATES[V+ (offset * num_of_rates)] * time_step) >= 0.8 && 0.005 < time_step && time_step < max_time_step) {
                 time_step = time_step / 10.0;
-                // printf("dV = %lf, time_step = %lf\n",std::abs(RATES[V] * time_step), time_step);
             }
         }
-        __syncthreads();
+        __syncthreads(); //re investigate do we really need this?
         return time_step;
     }
 }
@@ -558,43 +530,6 @@ RATES[(offset * num_of_rates) + cass] =  ALGEBRAIC[(offset * num_of_algebraic) +
 RATES[(offset * num_of_rates) + cansr] = ALGEBRAIC[(offset * num_of_algebraic) + Jup] - ( ALGEBRAIC[(offset * num_of_algebraic) + Jtr]*CONSTANTS[(offset * num_of_constants) + vjsr])/CONSTANTS[(offset * num_of_constants) + vnsr];
 RATES[(offset * num_of_rates) + cajsr] =  ALGEBRAIC[(offset * num_of_algebraic) + Bcajsr]*(ALGEBRAIC[(offset * num_of_algebraic) + Jtr] - ALGEBRAIC[(offset * num_of_algebraic) + Jrel]);
 RATES[(offset * num_of_rates) + V] = - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]);
-// for (int ZZZ = 0 ; ZZZ < num_of_rates; ZZZ++){
-  // printf("core %d, nilai pembilang nai = %lf\n", offset, - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab])*CONSTANTS[(offset * num_of_constants) + Acap]*CONSTANTS[(offset * num_of_constants) + cm]);
-  // printf("core %d, nilai pembilang INa = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INa]); //nan
-  // printf("core %d, nilai pembilang INaL = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INaL]); //nan
-  // printf("core %d, nilai pembilang INaCa_i = %lf\n", offset, 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]);
-  // printf("core %d, nilai pembilang INaK = %lf\n", offset, 3.00000*ALGEBRAIC[(offset * num_of_algebraic) + INaK]);
-  // printf("core %d, nilai pembilang INab = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INab]);
-  // printf("core %d, nilai pembilang acap = %lf\n", offset, CONSTANTS[(offset * num_of_constants) + Acap]);
-  // printf("core %d, nilai pembilang cm = %lf\n", offset, CONSTANTS[(offset * num_of_constants) + cm]);
-  // printf("core %d, nilai states m : %lf\n", offset, STATES[m + (offset * num_of_states)]);
-  // printf("core %d, nilai algebraic[tm] : %lf\n", offset, ALGEBRAIC[tm + (offset * num_of_algebraic)]);
-  // // ( CONSTANTS[mtD1 + (offset * num_of_constants)]*exp((STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)])/CONSTANTS[mtV2 + (offset * num_of_constants)])+ CONSTANTS[mtD2 + (offset * num_of_constants) ]*exp(- (STATES[V + (offset * num_of_states) ]+CONSTANTS[mtV3 + (offset * num_of_constants)])/CONSTANTS[mtV4 + (offset * num_of_constants)]))
-  // printf("core %d, nilai constants[mtD1] : %lf\n", offset, CONSTANTS[mtD1 + (offset * num_of_constants)]);
-  // printf("core %d, nilai constants[mtV2] : %lf\n", offset, CONSTANTS[mtV2 + (offset * num_of_constants)]);
-  // printf("core %d, nilai constants[mtD2] : %lf\n", offset, CONSTANTS[mtD2 + (offset * num_of_constants)]);
-  // printf("core %d, nilai constants[mtV4] : %lf\n", offset, CONSTANTS[mtV4 + (offset * num_of_constants)]);
-  // printf("core %d, nilai constants[mtV1] : %lf\n", offset, CONSTANTS[mtV1 + (offset * num_of_constants)]);
-  // printf("core %d, nilai pembilang tm  : %lf\n", offset, (STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)]));
-  // printf("core %d, nilai exp pertama : %lf\n", offset, (STATES[V + (offset * num_of_states)]+CONSTANTS[mtV1 + (offset * num_of_constants)])  /  CONSTANTS[mtV2 + (offset * num_of_constants)]  );
-  // printf("core %d, nilai rates[v] : %lf\n", offset, - (ALGEBRAIC[(offset * num_of_algebraic) + INa]+ALGEBRAIC[(offset * num_of_algebraic) + INaL]+ALGEBRAIC[(offset * num_of_algebraic) + Ito]+ALGEBRAIC[(offset * num_of_algebraic) + ICaL]+ALGEBRAIC[(offset * num_of_algebraic) + ICaNa]+ALGEBRAIC[(offset * num_of_algebraic) + ICaK]+ALGEBRAIC[(offset * num_of_algebraic) + IKr]+ALGEBRAIC[(offset * num_of_algebraic) + IKs]+ALGEBRAIC[(offset * num_of_algebraic) + IK1]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_i]+ALGEBRAIC[(offset * num_of_algebraic) + INaCa_ss]+ALGEBRAIC[(offset * num_of_algebraic) + INaK]+ALGEBRAIC[(offset * num_of_algebraic) + INab]+ALGEBRAIC[(offset * num_of_algebraic) + IKb]+ALGEBRAIC[(offset * num_of_algebraic) + IpCa]+ALGEBRAIC[(offset * num_of_algebraic) + ICab]+ALGEBRAIC[(offset * num_of_algebraic) + Istim]));
-  // // rates v NaN karena INa dan INaL bernilai NaN juga, jadi mau operasi pertambahan pun, hasilnya bakal nan. 
-
-  // printf("core %d, nilai INa = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INa]); //nan
-  // printf("core %d, nilai INaL = %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + INaL]); //nan
-  // // ALGEBRAIC[INaL + (offset * num_of_algebraic) ] =  CONSTANTS[GNaL + (offset * num_of_constants) ]*(STATES[V + (offset * num_of_states)] - ALGEBRAIC[ENa + (offset * num_of_algebraic)])*STATES[mL + (offset * num_of_states) ]*( (1.00000 - ALGEBRAIC[fINaLp + (offset * num_of_algebraic)])*STATES[hL + (offset * num_of_states) ]+ ALGEBRAIC[fINaLp + (offset * num_of_algebraic) ]*STATES[hLp + (offset * num_of_states) ]);
-  // printf("core %d, nilai Gnal = %lf\n", offset, CONSTANTS[GNaL + (offset * num_of_constants)] );
-  // printf("core %d, nilai ENa = %lf\n", offset, ALGEBRAIC[ENa + (offset * num_of_algebraic)] ); //inf atau -nan
-  // ALGEBRAIC[ENa + (offset * num_of_algebraic) ] =  (( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ])/CONSTANTS[F + (offset * num_of_constants) ])*log(CONSTANTS[nao + (offset * num_of_constants)]/STATES[nai + (offset * num_of_constants)]);
-  // printf("core %d, nilai pembilang ENa = %lf\n", offset, ( CONSTANTS[R + (offset * num_of_constants) ]*CONSTANTS[T + (offset * num_of_constants) ]) );
-  // printf("core %d, nilai penyebut ENa = %lf\n", offset, CONSTANTS[F + (offset * num_of_constants) ])*log( CONSTANTS[nao + (offset * num_of_constants)] / STATES[nai + (offset * num_of_constants)] );
-  // printf("core %d, uraian ENa = (( %lf * %lf )/ %lf )*log(%lf / %lf );\n", offset, CONSTANTS[R + (offset * num_of_constants) ], CONSTANTS[T + (offset * num_of_constants) ], CONSTANTS[F + (offset * num_of_constants) ], CONSTANTS[nao + (offset * num_of_constants)], STATES[nai + (offset * num_of_constants)] );
- 
-  // printf("core %d, nilai mL = %lf\n", offset,STATES[mL + (offset * num_of_states) ]); //nan 
-  // printf("core %d, mLss : %lf\n", offset,  1.00000/(1.00000+exp(- (STATES[V + (offset * num_of_states)]+42.8500)/5.26400)));
-  // printf("core %d, update mL  = (%lf - %lf)/ %lf\n", offset, ALGEBRAIC[(offset * num_of_algebraic) + mLss],  STATES[(offset * num_of_states) + mL], ALGEBRAIC[(offset * num_of_algebraic) + tmL]); 
-// }
-
 }
 
 __device__ void solveAnalytical(unsigned short offset, double dt, double *CONSTANTS, double *RATES, double *STATES, double *ALGEBRAIC)
@@ -729,7 +664,7 @@ __device__ void applyDrugEffect(unsigned short offset, double conc, double *ic50
   // int offset = threadIdx.x;
   // int offset = blockIdx.x * blockDim.x + threadIdx.x;
   int num_of_constants = 146;
-// cek lagi value ini, apakah dia bervariasi sesuai dengan samplenya? 
+
 CONSTANTS[GK1+(offset * num_of_constants)] = CONSTANTS[GK1+(offset * num_of_constants)] * ((ic50[2 + (offset*14)] > epsilon && ic50[3+ (offset*14)] > epsilon) ? 1./(1.+pow(conc/ic50[2+ (offset*14)],ic50[3+ (offset*14)])) : 1.);
 CONSTANTS[GKr+(offset * num_of_constants)] = CONSTANTS[GKr+(offset * num_of_constants)] * ((ic50[12+ (offset*14)] > epsilon && ic50[13+ (offset*14)] > epsilon) ? 1./(1.+pow(conc/ic50[12+ (offset*14)],ic50[13+ (offset*14)])) : 1.);
 CONSTANTS[GKs+(offset * num_of_constants)] = CONSTANTS[GKs+(offset * num_of_constants)] * ((ic50[4 + (offset*14)] > epsilon && ic50[5+ (offset*14)] > epsilon) ? 1./(1.+pow(conc/ic50[4+ (offset*14)],ic50[5+ (offset*14)])) : 1.);
@@ -821,8 +756,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     const double bcl = 2000; // bcl is basic cycle length
     
     // const double inet_vm_threshold = -88.0;
-    const unsigned short pace_max = 300;
-    // const unsigned short pace_max = 10;
+    // const unsigned short pace_max = 300;
+    const unsigned short pace_max = 10;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
@@ -848,15 +783,9 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
 
     while (tcurr[sample_id]<tmax){
-        dt_set = set_time_step(sample_id, tcurr[sample_id], time_point, max_time_step, d_CONSTANTS, d_RATES); // cara nge cek nya gimana ya???
-        computeRates(sample_id, tcurr[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); // ini nih yang bikin nan
-        // printf("%d,%lf,%lf,%lf,%lf\n", sample_id, dt_set[sample_id], tcurr, d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)]);
-        //Compute the correct/accepted time step
-        //printf("core %d pas update dt nilai bandingan if nya: %lf dibanding %lf dan verdict %d\n", sample_id, floor((tcurr + dt_set) / bcl), floor(tcurr / bcl), (floor((tcurr + dt_set) / bcl) == floor(tcurr / bcl))  );
-        if (floor((tcurr[sample_id] + dt_set) / bcl) == floor(tcurr[sample_id] / bcl)) { // mungkin kena di sini, karena pas di debugger, tcurr itu nol, jadi ada div by zero
-        // tammbahan: setelah di cek ke codingan CPU, kedua belah if harusnya sama secara angka, gak cuman true terus di verdict
-        // sementara di codingan GPU, walaupun kanan nol terus, kiri satu terus, tetep di bilang true
-          // printf("timestep not corrected in core %d \n", sample_id);
+        dt_set = set_time_step(sample_id, tcurr[sample_id], time_point, max_time_step, d_CONSTANTS, d_RATES); 
+        computeRates(sample_id, tcurr[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC); 
+        if (floor((tcurr[sample_id] + dt_set) / bcl) == floor(tcurr[sample_id] / bcl)) { 
           dt[sample_id] = dt_set;
         }
         else {
@@ -883,23 +812,8 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
         }
         solveAnalytical(sample_id, dt[sample_id], d_CONSTANTS, d_RATES, d_STATES, d_ALGEBRAIC);
         tcurr[sample_id] = tcurr[sample_id] + dt[sample_id];
-        //printf("core %d, pace_count: %d, tcurr: %lf\n", sample_id, pace_count, tcurr[sample_id]);
-        // kalau kita pakai 2 sample, penambahan dt ini terjadi 2x, 
-        // begitu juga seterusnya, sehingga membuat data ke skip
-        // sudah coba si tcurr di regulasi di paralleliser, cuman penambahan masi terjadi 2x
-        // sudah coba regulasi dt di paralleliser, tapi hasil masih sama
-
-        // issue found: GPU writting issue -> semua udah ketulis dengan benar, paling gak via printf
-        // input counter di regulasi di luar
-
-        // koreksi, input counter jangan di regulasi di luar!
-        // SOLVED: salah offset saat penulisan, harusnya input counter ketambah sepanjang sample size
-
+       
         if (pace_count > pace_max-2){
-        // printf("%d,%lf,%lf,%lf,%lf,%lf\n", sample_id, dt_set, tcurr[sample_id], d_STATES[V + (sample_id * num_of_states)],d_RATES[V + (sample_id * num_of_rates)], d_CONSTANTS[GKs+(sample_id * num_of_constants)]);
-        // printf("writing for core number %d\n",sample_id);
-        // printf("tcurr: %lf\n", tcurr[sample_id]);
-        // printf("writing this at input counter %d\n",input_counter);
         time[input_counter + sample_id] = tcurr[sample_id];
         out_dt[input_counter + sample_id] = dt[sample_id];
         states[input_counter + sample_id] = d_STATES[V + (sample_id * num_of_states)];
@@ -965,10 +879,6 @@ int main()
     //     printf("Too much input! Maximum sample data is 2000!\n");
     printf("Sample size: %d\n",sample_size);
    
-    // double ALGEBRAIC[num_of_algebraic * sample_size];
-    // double CONSTANTS[num_of_constants * sample_size];
-    // double RATES[num_of_rates * sample_size]; 
-    // double STATES[num_of_states * sample_size];
     printf("preparing GPU memory space \n");
     cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double));
     cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double));
@@ -982,16 +892,9 @@ int main()
     cudaMalloc(&inal, sample_size * datapoint_size * sizeof(double));
     
 
-    // printf("cuda malloc status for algebraic: %d\n", cudaMalloc(&d_ALGEBRAIC, num_of_algebraic * sample_size * sizeof(double))) ;
-    // printf("cuda malloc status for constants: %d\n", cudaMalloc(&d_CONSTANTS, num_of_constants * sample_size * sizeof(double)));
-    // printf("cuda malloc status for rates: %d\n", cudaMalloc(&d_RATES, num_of_rates * sample_size * sizeof(double)));
-    // printf("cuda malloc status for states: %d\n",cudaMalloc(&d_STATES, num_of_states * sample_size * sizeof(double)));
     printf("Copying sample files to GPU memory space \n");
     cudaMalloc(&d_ic50, sample_size * 14 * sizeof(double));
     cudaMemcpy(d_ic50, ic50, sample_size * 14 * sizeof(double), cudaMemcpyHostToDevice);
-
-    // int threadsPerBlock = 1024;
-    // int numBlocks;
 
     // // Get the maximum number of active blocks per multiprocessor
     // cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocks, do_drug_sim_analytical, threadsPerBlock);
@@ -1009,23 +912,13 @@ int main()
     printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
     // initscr();
     // printf("[____________________________________________________________________________________________________]  0.00 %% \n");
-    trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, time, dt, states, ical, inal, sample_size);
+    trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
+                                              time, dt, states, ical, inal, 
+                                              sample_size);
                                       //block per grid, threads per block
     // endwin();
     cudaDeviceSynchronize();
     
-    // printf("allocating memory for computation result in the CPU \n");
-   
-    // double h_states[datapoint_size * sample_size];
-    // printf("...allocated for STATES, \n");
-    // double h_time[datapoint_size * sample_size];
-    // printf("...allocated for time, \n");
-    // double h_dt[datapoint_size * sample_size];
-    // printf("...allocated for dt, \n");
-    // double h_ical[datapoint_size * sample_size];
-    // printf("...allocated for ICaL, \n");
-    // double h_inal[datapoint_size * sample_size];
-    // printf("...allocating for INaL, all set!\n");
 
     printf("allocating memory for computation result in the CPU, malloc style \n");
     double *h_states,*h_time,*h_dt,*h_ical,*h_inal;
@@ -1051,8 +944,6 @@ int main()
 
     FILE *writer;
 
-    // time[input_counter + sample_id]
-    // input_counter = input_counter + sample_size;
     printf("writing to file... \n");
     // sample loop
     for (int sample_id = 0; sample_id<sample_size; sample_id++){
