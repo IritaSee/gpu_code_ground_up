@@ -262,7 +262,7 @@ __device__ double set_time_step(
                 time_step = time_step / 10.0;
             }
         }
-        __syncthreads(); //re investigate do we really need this?
+        // __syncthreads(); //re investigate do we really need this?
         return time_step;
     }
 }
@@ -757,14 +757,14 @@ __device__ void do_drug_sim_analytical(double *d_ic50, double *d_CONSTANTS, doub
     
     // const double inet_vm_threshold = -88.0;
     // const unsigned short pace_max = 300;
-    const unsigned short pace_max = 10;
+    const unsigned short pace_max = 1000;
     // const unsigned short celltype = 0.;
     // const unsigned short last_pace_print = 3;
     // const unsigned short last_drug_check_pace = 250;
     // const unsigned int print_freq = (1./dt) * dtw;
     // unsigned short pace_count = 0;
     // unsigned short pace_steepest = 0;
-    double conc = 99.0; //mmol
+    double conc = 44070.0; //mmol
     // double conc = 0.0;
 
 
@@ -869,8 +869,8 @@ int main()
     int num_of_rates = 41;
 
     snprintf(buffer, sizeof(buffer),
-      // "./drugs/chlorpromazine/IC50_samples100.csv"
-      "./IC50_samples.csv"
+      "./drugs/sotalol/IC50_samples.csv"
+      // "./IC50_samples.csv"
       );
     int sample_size = get_IC50_data_from_file(buffer, ic50);
     if(sample_size == 0)
