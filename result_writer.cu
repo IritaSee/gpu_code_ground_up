@@ -909,7 +909,7 @@ int main()
     // int block = (sample_size + thread - 1) / thread;
 
     printf("Sample size: %d\n",sample_size);
-    printf("\n   Configuration: \n block  ||  thread\n-------------------\n   %d    ||    %d\n\n\n", block,thread);
+    printf("\n   Configuration: \n block \t||  thread/block \n---------------------------\n   %d   \t||    %d\n\n\n", block,thread);
     // initscr();
     // printf("[____________________________________________________________________________________________________]  0.00 %% \n");
     trigger_parallelisation<<<block,thread>>>(d_ic50, d_CONSTANTS, d_STATES, d_RATES, d_ALGEBRAIC, 
